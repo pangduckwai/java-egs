@@ -27,8 +27,12 @@ public class JavaEgs {
 	// private static final String FILE = "temp/P1B_OpenAPI_Nov2025Release.postman_collection.json";
 	// private static final String[] KEYS = {"item[]", "request", "url", "raw"};
 	// private static final String FILE = "temp/P1B_UAT7 PenetrationTest2025.postman_environment.json";
-	private static final String FILE = "temp/test.json";
-	private static final String[] KEYS = {"tree", "branch1", "branch10", "branch101", "leaf1012"};
+	// private static final String FILE = "temp/test.json";
+	// private static final String[] KEYS = {"tree", "branch1", "branch11"};
+	// private static final String[] KEYS = {"tree", "branch3", "leaf30[]"};
+	// private static final String[] KEYS = {"tree", "branch1", "branch10", "branch101", "leaf1012"};
+	// private static final String[] KEYS = {"values[]", "config", "hosts[]", "mtree", "mbranch1", "msg"};
+	// private static final String[] KEYS = {"values[]", "config", "hosts[]"};
 
 	public static void main(String[] args) {
 		SpringApplication.run(JavaEgs.class, args);
@@ -61,34 +65,14 @@ public class JavaEgs {
 						Examples.deserialize();
 						break;
 					case "read":
-						Parse.run(
-							FILE, KEYS,
-							(p, t, key, keys, val) -> {
-								String dlm = "";
-								StringBuilder sb = new StringBuilder("[");
-								for (String k : keys) {
-									sb.append(dlm).append(k);
-									dlm = ", ";
-								}
-								sb.append("]");
-								if (key != null) {
-									if (val == null) {
-										System.out.printf("%-9s %-21s %s\n", key, t, sb);
-									} else {
-										System.out.printf("%-9s %-21s %s (\"%s\")\n", key, t, sb, val);
-									}
-								} else {
-									if (val == null) {
-										System.out.printf("no key    %-21s %s\n", t, sb);
-									} else {
-										System.out.printf("no key    %-21s %s (\"%s\")\n", t, sb, val);
-									}
-								}
-							}
-						);
+						if (args.length < 2) {
+							System.out.println("JavaEgs:\n Usage: java -jar target\\jegs.jar read [option1 [option2 ...]]");
+							return;
+						}
+						JsonProcessor.process(JsonProcessor.parse(Arrays.copyOfRange(args, 1, args.length)));
 						break;
 					default:
-						System.out.printf("Unknown command '%s'\n", args[0]);
+						System.out.printf("Unknown command '%s'%n", args[0]);
 				}
 			} catch (Exception e) {
 				e.printStackTrace();

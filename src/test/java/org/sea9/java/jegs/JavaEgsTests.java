@@ -17,8 +17,17 @@ class JavaEgsTests {
 		String s3 = "Hello";
 		String s4 = "There";
 
-		System.out.printf("1. %s\n", s1.equals(s2)); // false
-		System.out.printf("2. %s\n", s1.equals(s3)); // true
-		System.out.printf("3. %s\n", s1.equals(s4)); // false
+		System.out.printf("nullTest() - 1. %s%n", s1.equals(s2)); // false
+		System.out.printf("nullTest() - 2. %s%n", s1.equals(s3)); // true
+		System.out.printf("nullTest() - 3. %s%n", s1.equals(s4)); // false
+	}
+
+	@Test
+	public void splitTest() throws Exception {
+		String str = "hello, there ,how, are , you, doing?";
+		String[] lst = str.split("[\\s]*,[\\s]*");
+		for (String itm : lst) {
+			System.out.printf("splitTest() - \"%s\"%n", itm);
+		}
 	}
 }
