@@ -92,7 +92,7 @@ public class Parse {
 		Stack<String> stack = new Stack<>();
 		int idx;
 		while (token != null) {
-			key = parser.getCurrentName();
+			key = parser.currentName(); // The method getCurrentName() from the type JsonParser is deprecated
 			idx = stack.size();
 
 			switch (token) {

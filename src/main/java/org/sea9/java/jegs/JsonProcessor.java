@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Stack;
 
 import com.fasterxml.jackson.core.JsonFactory;
@@ -12,25 +13,50 @@ import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.databind.MappingJsonFactory;
 
+	/*
+	 * Process the given input JSON file.
+	 * @param input // 
+	 * @param lookup // 
+	 * @param operation // 
+	 * @param skip // 
+	 * @throws JsonParseException
+	 * @throws IOException
+	 */
+
 public class JsonProcessor {
 	public static class Config {
 		private String inFile;
+		/**
+		 * path of the input file.
+		 */
 		public String inputFile() {
 			return inFile;
 		}
-		public void setInputFile(String inputFile) {
-			this.inFile = inputFile;
+		public void setInputFile(String file) {
+			this.inFile = file;
 		}
 
 		private String[] jsonPth;
+		/**
+		 * JSON path of the item to lookup, run thru the entire file if null.
+		 */
 		public String[] jsonPath() {
 			return jsonPth;
 		}
-		public void setJsonPath(String[] jsonPath) {
-			this.jsonPth = jsonPath;
+		public void setJsonPath(String... path) {
+			if (this.jsonPth == null) {
+				this.jsonPth = path;
+			} else {
+				List<String> lst = Arrays.asList(this.jsonPth);
+				lst.addAll(Arrays.asList(path));
+				this.jsonPth = lst.toArray(jsonPth);
+			}
 		}
 
 		private String oper;
+		/**
+		 * identifier of the operation.
+		 */
 		public String operation() {
 			return oper;
 		}
@@ -39,11 +65,14 @@ public class JsonProcessor {
 		}
 
 		private boolean skipChild;
+		/**
+		 * skip processing of subtrees not in the lookup path, no effect if lookup is null.
+		 */
 		public boolean isSkipChild() {
 			return skipChild;
 		}
-		public void shouldSkipChild(boolean skipChild) {
-			this.skipChild = skipChild;
+		public void shouldSkipChild(boolean skip) {
+			this.skipChild = skip;
 		}
 
 		public Config() {
@@ -90,7 +119,7 @@ public class JsonProcessor {
 					} else {
 						str = args[i].substring(idx);
 					}
-					cfg.jsonPth = str.split("[\\s]*[.][\\s]*");
+					cfg.setJsonPath(str.split("[\\s]*[.][\\s]*"));
 					cnt ++;
 					break;
 				case "-o":
@@ -118,7 +147,7 @@ public class JsonProcessor {
 		return null;
 	}
 
-	public interface ProcessAction {
+	public interface Action {
 		public void exec(
 			JsonToken token,  // current json token from jackson
 			String key,       // key of the current json item
@@ -129,11 +158,11 @@ public class JsonProcessor {
 		);
 	}
 
-	private static final void _process(
+	protected static final void _process(
 		JsonParser parser,
 		String[] lookup,
 		boolean skip,
-		ProcessAction action
+		Action action
 	) throws JsonParseException, IOException {
 		JsonToken token = parser.nextToken();
 		if (token != JsonToken.START_OBJECT) {
@@ -147,7 +176,7 @@ public class JsonProcessor {
 		boolean fnd;
 		int idx;
 		while (token != null) {
-			key = parser.getCurrentName();
+			key = parser.currentName(); // The method getCurrentName() from the type JsonParser is deprecated
 			idx = stckLook.size();
 
 			switch (token) {
@@ -276,13 +305,17 @@ public class JsonProcessor {
 		JsonFactory factory = new MappingJsonFactory();
 		JsonParser parser = factory.createParser(new File(input));
 
-		_process(
-			parser, lookup, skip,
-			(token, key, curr, look, found, val) -> {
-				switch (operation) {
-					case "display":
-						// default behaviour
-					default:
+		switch (operation) {
+			case "recursion":
+				JsonProcessor.Action action = new JsonProcessorRecursion();
+				_process(parser, lookup, skip, action);
+				break;
+			case "display":
+				// default behaviour
+			default:
+				_process(
+					parser, lookup, skip,
+					(token, key, curr, look, found, val) -> {
 						ArrayList<String> lstc = new ArrayList<>(Arrays.asList(curr));
 						ArrayList<String> lstl = new ArrayList<String>(Arrays.asList(look));
 						lstc.removeAll(lstl);
@@ -295,9 +328,9 @@ public class JsonProcessor {
 						} else if (val != null) {
 							System.out.printf("no key    %-21s %s %s (\"%s\")%s%n", token, lstl, lstc, val, fnd);
 						}
-				}
-			}
-		);
+					}
+				);
+		}
 	}
 
 	public static final void process(JsonProcessor.Config cfg) throws JsonParseException, IOException {
