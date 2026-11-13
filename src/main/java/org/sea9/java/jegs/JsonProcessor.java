@@ -1,7 +1,9 @@
 package org.sea9.java.jegs;
 
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -11,7 +13,9 @@ import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
+import com.fasterxml.jackson.core.TreeNode;
 import com.fasterxml.jackson.databind.MappingJsonFactory;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 	/*
 	 * Process the given input JSON file.
@@ -36,21 +40,34 @@ public class JsonProcessor {
 			this.inFile = file;
 		}
 
-		private String[] jsonPth;
+		private String outFile;
+		public String outputFile() {
+			return outFile;
+		}
+		public void setOutputFile(String file) {
+			this.outFile = file;
+		}
+
+		private String[][] jsonPths;
 		/**
 		 * JSON path of the item to lookup, run thru the entire file if null.
 		 */
-		public String[] jsonPath() {
-			return jsonPth;
+		public String[][] jsonPaths() {
+			return jsonPths;
 		}
-		public void setJsonPath(String... path) {
-			if (this.jsonPth == null) {
-				this.jsonPth = path;
+		public void setJsonPaths(String[][] paths) {
+			jsonPths = paths;
+		}
+		public void setJsonPath(String[] path) {
+			List<String[]> lst;
+			String[][] buf = {{}};
+			if (this.jsonPths == null) {
+				lst = new ArrayList<>();
 			} else {
-				List<String> lst = Arrays.asList(this.jsonPth);
-				lst.addAll(Arrays.asList(path));
-				this.jsonPth = lst.toArray(jsonPth);
+				lst = Arrays.asList(this.jsonPths);
 			}
+			lst.add(path);
+			this.jsonPths = lst.toArray(buf);
 		}
 
 		private String oper;
@@ -76,7 +93,7 @@ public class JsonProcessor {
 		}
 
 		public Config() {
-			skipChild = false;
+			skipChild = true;
 			oper = "default";
 		}
 
@@ -86,7 +103,7 @@ public class JsonProcessor {
 				"   {-i FILE | --input-file=FILE}\n" +
 				"   {-p PATH | --lookup-path=PATH}\n" +
 				"   {-o OPER | --operation=OPER}\n" +
-				"   {-s | --skip}";
+				"   {-s | --do-not-skip}";
 		}
 	}
 
@@ -133,8 +150,8 @@ public class JsonProcessor {
 					cnt ++;
 					break;
 				case "-s":
-				case "--skip":
-					cfg.skipChild = true;
+				case "--do-not-skip":
+					cfg.skipChild = false;
 					cnt ++;
 					break;
 				default:
@@ -158,15 +175,20 @@ public class JsonProcessor {
 		);
 	}
 
-	protected static final void _process(
+	private static final void parse(
 		JsonParser parser,
-		String[] lookup,
+		String[][] lkup,
 		boolean skip,
 		Action action
 	) throws JsonParseException, IOException {
 		JsonToken token = parser.nextToken();
 		if (token != JsonToken.START_OBJECT) {
 			throw new RuntimeException("expecting root to be an object");
+		}
+
+		String[] lookup = null;
+		if (lkup != null && lkup.length > 0) {
+			lookup = lkup[0];
 		}
 
 		String key;
@@ -287,6 +309,43 @@ public class JsonProcessor {
 		}
 	}
 
+	private static class Result {
+		public String key;
+		public TreeNode out;
+	};
+	private static final Result run(
+		JsonParser parser,
+		String[][] lookup,
+		boolean skip
+	) {
+		JsonProcessorOutput action = new JsonProcessorOutput();
+		new Thread() {
+			public final void run() {
+				try {
+					parse(parser, lookup, skip, action);
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
+		}.start();
+
+		int count = 19;
+		while (!action.isReady() && count > 0) {
+			try {
+				Thread.sleep(500);
+			} catch (InterruptedException e) {}
+			count --;
+		}
+
+		if (!action.isReady()) {
+			throw new RuntimeException("Parse failed");
+		}
+		Result rslt = new Result();
+		rslt.key = action.keys();
+		rslt.out = action.output();
+		return rslt;
+	}
+
 	/**
 	 * Process the given input JSON file.
 	 * @param input // path of the input file.
@@ -298,7 +357,8 @@ public class JsonProcessor {
 	 */
 	public static final void process(
 		String input,
-		String[] lookup,
+		String output,
+		String[][] lookup,
 		String operation,
 		boolean skip
 	) throws JsonParseException, IOException {
@@ -306,14 +366,29 @@ public class JsonProcessor {
 		JsonParser parser = factory.createParser(new File(input));
 
 		switch (operation) {
-			case "recursion":
-				JsonProcessor.Action action = new JsonProcessorRecursion();
-				_process(parser, lookup, skip, action);
+			case "output":
+				PrintStream pnt;
+				if (output != null) {
+					pnt = new PrintStream(new FileOutputStream(output));
+				} else {
+					pnt = System.out;
+				}
+
+				Result target = run(parser, lookup, skip);
+				if (lookup == null || lookup.length <= 1) {
+					pnt.printf("\"%s\": ", target.key);
+					ObjectMapper mapper = new ObjectMapper();
+					String txt = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(target.out);
+					pnt.println(txt);
+				} else {
+					pnt.println("Work In Progress!!!!"); // TODO HERE!!!
+				}
+
 				break;
 			case "display":
 				// default behaviour
 			default:
-				_process(
+				parse(
 					parser, lookup, skip,
 					(token, key, curr, look, found, val) -> {
 						ArrayList<String> lstc = new ArrayList<>(Arrays.asList(curr));
@@ -340,7 +415,8 @@ public class JsonProcessor {
 
 		process(
 			cfg.inputFile(),
-			cfg.jsonPath(),
+			cfg.outputFile(),
+			cfg.jsonPaths(),
 			cfg.operation(),
 			cfg.isSkipChild()
 		);
