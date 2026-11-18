@@ -1,5 +1,6 @@
 package org.sea9.java.jegs;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 
 import org.springframework.boot.CommandLineRunner;
@@ -69,7 +70,23 @@ public class JavaEgs {
 							System.out.println("JavaEgs:\n Usage: java -jar target\\jegs.jar read {command} [option1 [option2 ...]]");
 							return;
 						}
-						JsonProcessor.process(JsonProcessor.parse(Arrays.copyOfRange(args, 1, args.length)));
+						JsonProcessor.process(
+							JsonProcessor.parse(Arrays.copyOfRange(args, 1, args.length)),
+							(token, key, curr, look, found, val) -> {
+								ArrayList<String> lstc = new ArrayList<>(Arrays.asList(curr));
+								ArrayList<String> lstl = new ArrayList<String>(Arrays.asList(look));
+								lstc.removeAll(lstl);
+
+								String fnd = found ? " ***** FOUND! *****" : "";
+								if (key != null && val != null) {
+									System.out.printf("%-9s %-21s %s %s (\"%s\")%s%n", key, token, lstl, lstc, val, fnd);
+								} else if (key != null) {
+									System.out.printf("%-9s %-21s %s %s%s%n", key, token, lstl, lstc, fnd);
+								} else if (val != null) {
+									System.out.printf("no key    %-21s %s %s (\"%s\")%s%n", token, lstl, lstc, val, fnd);
+								}
+							}
+						);
 						break;
 					default:
 						System.out.printf("Unknown command '%s'%n", args[0]);

@@ -100,8 +100,8 @@ public class JsonProcessor {
 		public final String usage() {
 			return
 				"JsonProcessor options:\n" +
-				"   [COMMAND]\n" +
 				"   {-i FILE | --input-file=FILE}\n" +
+				"   {-o FILE | --output-file=FILE}\n" +
 				"   {-p PATH | --lookup-path=PATH}\n" +
 				"   {-s | --do-not-skip}";
 		}
@@ -194,7 +194,6 @@ public class JsonProcessor {
 		String[] keys = {};
 		Stack<String> stckCurr = new Stack<>();
 		Stack<String> stckLook = new Stack<>();
-		boolean fnd;
 		int idx;
 		while (token != null) {
 			key = parser.currentName(); // The method getCurrentName() from the type JsonParser is deprecated
@@ -203,9 +202,15 @@ public class JsonProcessor {
 			switch (token) {
 				case START_OBJECT:
 					if (lookup != null) {
-						if (idx < lookup.length && lookup[idx].equals(key)) {
-							stckCurr.push(key);
-							stckLook.push(key);
+						if (lookup[idx].equals(key)) {
+							if (idx == lookup.length - 1) { // found!
+								// do not push to stacks here because after 'readValueAsTree', the corresponding END_OBJECT event is not fired
+								action.exec(token, key, stckCurr.toArray(keys), stckLook.toArray(keys), true, parser.readValueAsTree());
+								break;
+							} else {
+								stckCurr.push(key);
+								stckLook.push(key);
+							}
 						} else if (key != null) {
 							if (skip) {
 								parser.skipChildren();
@@ -213,20 +218,12 @@ public class JsonProcessor {
 								stckCurr.push(key);
 							}
 						}
-						fnd = (stckLook.size() == lookup.length);
 					} else {
 						if (key != null) {
 							stckCurr.push(key);
 						}
-						fnd = false;
 					}
-					action.exec(token, key, stckCurr.toArray(keys), stckLook.toArray(keys), fnd, fnd ? parser.readValueAsTree() : null);
-					if (fnd) {
-						// this is needed because after 'readValueAsTree', the corresponding END_OBJECT event is not fired
-						// by (fnd == true), implicitly it means: (lookup != null), stckLook.size() == lookup.length
-						if (!stckLook.isEmpty() && stckLook.peek().equals(key)) stckLook.pop();
-						if (!stckCurr.isEmpty() && !skip && stckCurr.peek().equals(key)) stckCurr.pop();
-					}
+					action.exec(token, key, stckCurr.toArray(keys), stckLook.toArray(keys), false, null);
 					break;
 				case END_OBJECT:
 					if (!stckCurr.isEmpty() && stckCurr.peek().equals(key)) {
@@ -238,9 +235,14 @@ public class JsonProcessor {
 					break;
 				case START_ARRAY:
 					if (lookup != null) {
-						if (key != null && idx < lookup.length && lookup[idx].startsWith(key) && lookup[idx].endsWith("[]")) {
-							stckCurr.push(key);
-							stckLook.push(key);
+						if (key != null && lookup[idx].startsWith(key) && lookup[idx].endsWith("[]")) {
+							if (idx == lookup.length - 1) { // found!
+								// do not push to stacks here because after 'readValueAsTree', the corresponding END_ARRAY event is not fired
+								action.exec(token, key, stckCurr.toArray(keys), stckLook.toArray(keys), true, parser.readValueAsTree());
+							} else {
+								stckCurr.push(key);
+								stckLook.push(key);
+							}
 						} else if (key != null) {
 							if (skip) {
 								parser.skipChildren();
@@ -248,20 +250,12 @@ public class JsonProcessor {
 								stckCurr.push(key);
 							}
 						}
-						fnd = (stckLook.size() == lookup.length);
 					} else {
 						if (key != null) {
 							stckCurr.push(key);
 						}
-						fnd = false;
 					}
-					action.exec(token, key, stckCurr.toArray(keys), stckLook.toArray(keys), fnd, fnd ? parser.readValueAsTree() : null);
-					if (fnd) {
-						// this is needed because after 'readValueAsTree', the corresponding END_ARRAY event is not fired
-						// same as START_OBJECT above
-						if (!stckLook.isEmpty() && stckLook.peek().equals(key)) stckLook.pop();
-						if (!stckCurr.isEmpty() && !skip && stckCurr.peek().equals(key)) stckCurr.pop();
-					}
+					action.exec(token, key, stckCurr.toArray(keys), stckLook.toArray(keys), false, null);
 					break;
 				case END_ARRAY:
 					if (!stckCurr.isEmpty() && stckCurr.peek().equals(key)) {
@@ -272,29 +266,47 @@ public class JsonProcessor {
 					}
 					break;
 				case VALUE_STRING:
-					fnd = lookup != null && stckLook.size() == (lookup.length -1) && lookup[lookup.length-1].equals(key);
-					action.exec(token, key, stckCurr.toArray(keys), stckLook.toArray(keys), fnd, parser.getText());
+					action.exec(
+						token, key, stckCurr.toArray(keys), stckLook.toArray(keys),
+						lookup != null && stckLook.size() == (lookup.length -1) && lookup[lookup.length-1].equals(key),
+						parser.getText()
+					);
 					break;
 				case VALUE_TRUE:
 				case VALUE_FALSE:
-					fnd = lookup != null && stckLook.size() == (lookup.length -1) && lookup[lookup.length-1].equals(key);
-					action.exec(token, key, stckCurr.toArray(keys), stckLook.toArray(keys), fnd, parser.getBooleanValue());
+					action.exec(
+						token, key, stckCurr.toArray(keys), stckLook.toArray(keys),
+						lookup != null && stckLook.size() == (lookup.length -1) && lookup[lookup.length-1].equals(key),
+						parser.getBooleanValue()
+					);
 					break;
 				case VALUE_NUMBER_INT:
-					fnd = lookup != null && stckLook.size() == (lookup.length -1) && lookup[lookup.length-1].equals(key);
-					action.exec(token, key, stckCurr.toArray(keys), stckLook.toArray(keys), fnd, parser.getLongValue());
+					action.exec(
+						token, key, stckCurr.toArray(keys), stckLook.toArray(keys),
+						lookup != null && stckLook.size() == (lookup.length -1) && lookup[lookup.length-1].equals(key),
+						parser.getLongValue()
+					);
 					break;
 				case VALUE_NUMBER_FLOAT:
-					fnd = lookup != null && stckLook.size() == (lookup.length -1) && lookup[lookup.length-1].equals(key);
-					action.exec(token, key, stckCurr.toArray(keys), stckLook.toArray(keys), fnd, parser.getDecimalValue());
+					action.exec(
+						token, key, stckCurr.toArray(keys), stckLook.toArray(keys),
+						lookup != null && stckLook.size() == (lookup.length -1) && lookup[lookup.length-1].equals(key),
+						parser.getDecimalValue()
+					);
 					break;
 				case VALUE_EMBEDDED_OBJECT:
-					fnd = lookup != null && stckLook.size() == (lookup.length -1) && lookup[lookup.length-1].equals(key);
-					action.exec(token, key, stckCurr.toArray(keys), stckLook.toArray(keys), fnd, parser.getEmbeddedObject());
+					action.exec(
+						token, key, stckCurr.toArray(keys), stckLook.toArray(keys),
+						lookup != null && stckLook.size() == (lookup.length -1) && lookup[lookup.length-1].equals(key),
+						parser.getEmbeddedObject()
+					);
 					break;
 				case VALUE_NULL:
-					fnd = lookup != null && stckLook.size() == (lookup.length -1) && lookup[lookup.length-1].equals(key);
-					action.exec(token, key, stckCurr.toArray(keys), stckLook.toArray(keys), fnd, null);
+					action.exec(
+						token, key, stckCurr.toArray(keys), stckLook.toArray(keys),
+						lookup != null && stckLook.size() == (lookup.length -1) && lookup[lookup.length-1].equals(key),
+						null
+					);
 					break;
 				// case FIELD_NAME:
 				// 	break;
@@ -345,26 +357,14 @@ public class JsonProcessor {
 	// 	return rslt;
 	// }
 
-	/**
-	 * Process the given input JSON file.
-	 * @param input // path of the input file.
-	 * @param lookups // JSON path of the item to lookup, run thru the entire file if null.
-	 * @param command // identifier of the operation.
-	 * @param skip // skip processing of subtrees not in the lookup path, no effect if lookup is null.
-	 * @throws JsonParseException
-	 * @throws IOException
-	 */
 	public static final void process(
-		String command,
-		String input,
+		JsonParser input,
 		String output,
 		String[][] lookups,
-		boolean skip
+		boolean skip,
+		Action action
 	) throws JsonParseException, IOException {
-		JsonFactory factory = new MappingJsonFactory();
-		JsonParser parser = factory.createParser(new File(input));
-
-		switch (command) {
+		// switch (command) {
 			// case "output":
 			// 	if (lookups == null || lookups.length < 1) {
 			// 		throw new RuntimeException("nothing to lookup");
@@ -389,44 +389,67 @@ public class JsonProcessor {
 			// 	}
 
 			// 	break;
-			case "display":
-				// default behaviour
-			default:
-				String[] lookup = null;
-				if (lookups != null && lookups.length > 0) {
-					lookup = lookups[0];
-				}
-				parseJson(
-					parser, lookup, skip,
-					(token, key, curr, look, found, val) -> {
-						ArrayList<String> lstc = new ArrayList<>(Arrays.asList(curr));
-						ArrayList<String> lstl = new ArrayList<String>(Arrays.asList(look));
-						lstc.removeAll(lstl);
-
-						String fnd = found ? " ***** FOUND! *****" : "";
-						if (key != null && val != null) {
-							System.out.printf("%-9s %-21s %s %s (\"%s\")%s%n", key, token, lstl, lstc, val, fnd);
-						} else if (key != null) {
-							System.out.printf("%-9s %-21s %s %s%s%n", key, token, lstl, lstc, fnd);
-						} else if (val != null) {
-							System.out.printf("no key    %-21s %s %s (\"%s\")%s%n", token, lstl, lstc, val, fnd);
-						}
-					}
-				);
+			// case "display":
+			// 	// default behaviour
+			// default:
+		String[] lookup = null;
+		if (lookups != null && lookups.length > 0) {
+			lookup = lookups[0];
 		}
+		parseJson(
+			input, lookup, skip, action
+		);
+		// }
 	}
 
-	public static final void process(JsonProcessor.Config cfg) throws JsonParseException, IOException {
+	/**
+	 * Process the given input JSON file.
+	 * @param input   // path of the input file.
+	 * @param output  // path of the output file.
+	 * @param lookups // JSON path of the item to lookup, run thru the entire file if null.
+	 * @param skip    // skip processing of subtrees not in the lookup path, no effect if lookup is null.
+	 * @throws JsonParseException
+	 * @throws IOException
+	 */
+	public static final void process(
+		String input,
+		String output,
+		String[][] lookups,
+		boolean skip,
+		Action action
+	) throws JsonParseException, IOException {
+		JsonFactory factory = new MappingJsonFactory();
+		JsonParser parser = factory.createParser(new File(input));
+
+		process(
+			parser,
+			output,
+			lookups,
+			skip,
+			action
+		);
+	}
+
+	/**
+	 * Process JSON with inputs given from command-line arguments.
+	 * @param cfg parsed command-line argument.
+	 * @throws JsonParseException
+	 * @throws IOException
+	 */
+	public static final void process(
+		JsonProcessor.Config cfg,
+		Action action
+	) throws JsonParseException, IOException {
 		if (cfg == null) {
 			throw new RuntimeException("configuration missing");
 		}
 
 		process(
-			cfg.command(),
 			cfg.inputFile(),
 			cfg.outputFile(),
 			cfg.jsonPaths(),
-			cfg.isSkipChild()
+			cfg.isSkipChild(),
+			action
 		);
 	}
 }
