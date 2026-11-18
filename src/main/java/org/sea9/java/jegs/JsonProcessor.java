@@ -1,8 +1,10 @@
 package org.sea9.java.jegs;
 
 import java.io.File;
+import java.io.FileOutputStream;
 // import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.PrintStream;
 // import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -175,12 +177,14 @@ public class JsonProcessor {
 			String[] current, // path of keys of the current json item 
 			String[] lookup,  // path of keys of the looked-up json item
 			boolean found,    // target json item reached if true
-			Object value      // value of the current json item
+			Object value,     // value of the current json item
+			PrintStream out   // output stream to use
 		);
 	}
 
 	private static final void parseJson(
 		JsonParser parser,
+		PrintStream out,
 		String[] lookup,
 		boolean skip,
 		Action action
@@ -205,7 +209,7 @@ public class JsonProcessor {
 						if (lookup[idx].equals(key)) {
 							if (idx == lookup.length - 1) { // found!
 								// do not push to stacks here because after 'readValueAsTree', the corresponding END_OBJECT event is not fired
-								action.exec(token, key, stckCurr.toArray(keys), stckLook.toArray(keys), true, parser.readValueAsTree());
+								action.exec(token, key, stckCurr.toArray(keys), stckLook.toArray(keys), true, parser.readValueAsTree(), out);
 								break;
 							} else {
 								stckCurr.push(key);
@@ -223,7 +227,7 @@ public class JsonProcessor {
 							stckCurr.push(key);
 						}
 					}
-					action.exec(token, key, stckCurr.toArray(keys), stckLook.toArray(keys), false, null);
+					action.exec(token, key, stckCurr.toArray(keys), stckLook.toArray(keys), false, null, out);
 					break;
 				case END_OBJECT:
 					if (!stckCurr.isEmpty() && stckCurr.peek().equals(key)) {
@@ -235,10 +239,10 @@ public class JsonProcessor {
 					break;
 				case START_ARRAY:
 					if (lookup != null) {
-						if (key != null && lookup[idx].startsWith(key) && lookup[idx].endsWith("[]")) {
+						if (key != null && lookup[idx].startsWith(key) && lookup[idx].endsWith("[]") && key.length() == lookup[idx].length() - 2) {
 							if (idx == lookup.length - 1) { // found!
 								// do not push to stacks here because after 'readValueAsTree', the corresponding END_ARRAY event is not fired
-								action.exec(token, key, stckCurr.toArray(keys), stckLook.toArray(keys), true, parser.readValueAsTree());
+								action.exec(token, key, stckCurr.toArray(keys), stckLook.toArray(keys), true, parser.readValueAsTree(), out);
 							} else {
 								stckCurr.push(key);
 								stckLook.push(key);
@@ -255,7 +259,7 @@ public class JsonProcessor {
 							stckCurr.push(key);
 						}
 					}
-					action.exec(token, key, stckCurr.toArray(keys), stckLook.toArray(keys), false, null);
+					action.exec(token, key, stckCurr.toArray(keys), stckLook.toArray(keys), false, null, out);
 					break;
 				case END_ARRAY:
 					if (!stckCurr.isEmpty() && stckCurr.peek().equals(key)) {
@@ -269,7 +273,7 @@ public class JsonProcessor {
 					action.exec(
 						token, key, stckCurr.toArray(keys), stckLook.toArray(keys),
 						lookup != null && stckLook.size() == (lookup.length -1) && lookup[lookup.length-1].equals(key),
-						parser.getText()
+						parser.getText(), out
 					);
 					break;
 				case VALUE_TRUE:
@@ -277,35 +281,35 @@ public class JsonProcessor {
 					action.exec(
 						token, key, stckCurr.toArray(keys), stckLook.toArray(keys),
 						lookup != null && stckLook.size() == (lookup.length -1) && lookup[lookup.length-1].equals(key),
-						parser.getBooleanValue()
+						parser.getBooleanValue(), out
 					);
 					break;
 				case VALUE_NUMBER_INT:
 					action.exec(
 						token, key, stckCurr.toArray(keys), stckLook.toArray(keys),
 						lookup != null && stckLook.size() == (lookup.length -1) && lookup[lookup.length-1].equals(key),
-						parser.getLongValue()
+						parser.getLongValue(), out
 					);
 					break;
 				case VALUE_NUMBER_FLOAT:
 					action.exec(
 						token, key, stckCurr.toArray(keys), stckLook.toArray(keys),
 						lookup != null && stckLook.size() == (lookup.length -1) && lookup[lookup.length-1].equals(key),
-						parser.getDecimalValue()
+						parser.getDecimalValue(), out
 					);
 					break;
 				case VALUE_EMBEDDED_OBJECT:
 					action.exec(
 						token, key, stckCurr.toArray(keys), stckLook.toArray(keys),
 						lookup != null && stckLook.size() == (lookup.length -1) && lookup[lookup.length-1].equals(key),
-						parser.getEmbeddedObject()
+						parser.getEmbeddedObject(), out
 					);
 					break;
 				case VALUE_NULL:
 					action.exec(
 						token, key, stckCurr.toArray(keys), stckLook.toArray(keys),
 						lookup != null && stckLook.size() == (lookup.length -1) && lookup[lookup.length-1].equals(key),
-						null
+						null, out
 					);
 					break;
 				// case FIELD_NAME:
@@ -358,8 +362,8 @@ public class JsonProcessor {
 	// }
 
 	public static final void process(
-		JsonParser input,
-		String output,
+		JsonParser parser,
+		PrintStream out,
 		String[][] lookups,
 		boolean skip,
 		Action action
@@ -397,13 +401,13 @@ public class JsonProcessor {
 			lookup = lookups[0];
 		}
 		parseJson(
-			input, lookup, skip, action
+			parser, out, lookup, skip, action
 		);
 		// }
 	}
 
 	/**
-	 * Process the given input JSON file.
+	 * Process the given input JSON file and potentially write to the given output file.
 	 * @param input   // path of the input file.
 	 * @param output  // path of the output file.
 	 * @param lookups // JSON path of the item to lookup, run thru the entire file if null.
@@ -418,12 +422,20 @@ public class JsonProcessor {
 		boolean skip,
 		Action action
 	) throws JsonParseException, IOException {
+		if (input == null) {
+			throw new RuntimeException("input file path missing");
+		}
 		JsonFactory factory = new MappingJsonFactory();
 		JsonParser parser = factory.createParser(new File(input));
 
+		PrintStream out = System.out;
+		if (output != null) {
+			out = new PrintStream(new FileOutputStream(output));
+		}
+
 		process(
 			parser,
-			output,
+			out,
 			lookups,
 			skip,
 			action

@@ -1,5 +1,7 @@
 package org.sea9.java.jegs;
 
+import java.io.PrintStream;
+
 import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.databind.JsonNode;
 
@@ -38,7 +40,8 @@ public class JsonProcessorOutput implements JsonProcessor.Action {
 		String[] current,
 		String[] lookup,
 		boolean found,
-		Object value
+		Object value,
+		PrintStream out
 	) {
 		if (found && key != null && value != null && (token == JsonToken.START_OBJECT || token == JsonToken.START_ARRAY)) {
 			this.out = (JsonNode) value;

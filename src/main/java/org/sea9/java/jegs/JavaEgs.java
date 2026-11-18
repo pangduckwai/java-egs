@@ -72,18 +72,18 @@ public class JavaEgs {
 						}
 						JsonProcessor.process(
 							JsonProcessor.parse(Arrays.copyOfRange(args, 1, args.length)),
-							(token, key, curr, look, found, val) -> {
+							(token, key, curr, look, found, val, out) -> {
 								ArrayList<String> lstc = new ArrayList<>(Arrays.asList(curr));
 								ArrayList<String> lstl = new ArrayList<String>(Arrays.asList(look));
 								lstc.removeAll(lstl);
 
 								String fnd = found ? " ***** FOUND! *****" : "";
 								if (key != null && val != null) {
-									System.out.printf("%-9s %-21s %s %s (\"%s\")%s%n", key, token, lstl, lstc, val, fnd);
+									out.printf("%-9s %-21s %s %s (\"%s\")%s%n", key, token, lstl, lstc, val, fnd);
 								} else if (key != null) {
-									System.out.printf("%-9s %-21s %s %s%s%n", key, token, lstl, lstc, fnd);
+									out.printf("%-9s %-21s %s %s%s%n", key, token, lstl, lstc, fnd);
 								} else if (val != null) {
-									System.out.printf("no key    %-21s %s %s (\"%s\")%s%n", token, lstl, lstc, val, fnd);
+									out.printf("no key    %-21s %s %s (\"%s\")%s%n", token, lstl, lstc, val, fnd);
 								}
 							}
 						);
