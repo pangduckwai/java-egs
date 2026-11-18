@@ -66,7 +66,7 @@ public class JavaEgs {
 						break;
 					case "read":
 						if (args.length < 2) {
-							System.out.println("JavaEgs:\n Usage: java -jar target\\jegs.jar read [option1 [option2 ...]]");
+							System.out.println("JavaEgs:\n Usage: java -jar target\\jegs.jar read {command} [option1 [option2 ...]]");
 							return;
 						}
 						JsonProcessor.process(JsonProcessor.parse(Arrays.copyOfRange(args, 1, args.length)));

@@ -1,9 +1,9 @@
 package org.sea9.java.jegs;
 
 import java.io.File;
-import java.io.FileOutputStream;
+// import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.PrintStream;
+// import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -13,9 +13,9 @@ import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonToken;
-import com.fasterxml.jackson.core.TreeNode;
+// import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.MappingJsonFactory;
-import com.fasterxml.jackson.databind.ObjectMapper;
+// import com.fasterxml.jackson.databind.ObjectMapper;
 
 	/*
 	 * Process the given input JSON file.
@@ -29,6 +29,17 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class JsonProcessor {
 	public static class Config {
+		private String cmmd;
+		/**
+		 * identifier of the operation.
+		 */
+		public String command() {
+			return cmmd;
+		}
+		public void setCommand(String cmd) {
+			cmmd = cmd;
+		}
+
 		private String inFile;
 		/**
 		 * path of the input file.
@@ -37,7 +48,7 @@ public class JsonProcessor {
 			return inFile;
 		}
 		public void setInputFile(String file) {
-			this.inFile = file;
+			inFile = file;
 		}
 
 		private String outFile;
@@ -45,7 +56,7 @@ public class JsonProcessor {
 			return outFile;
 		}
 		public void setOutputFile(String file) {
-			this.outFile = file;
+			outFile = file;
 		}
 
 		private String[][] jsonPths;
@@ -67,18 +78,7 @@ public class JsonProcessor {
 				lst = Arrays.asList(this.jsonPths);
 			}
 			lst.add(path);
-			this.jsonPths = lst.toArray(buf);
-		}
-
-		private String oper;
-		/**
-		 * identifier of the operation.
-		 */
-		public String operation() {
-			return oper;
-		}
-		public void setOperation(String ops) {
-			this.oper = ops;
+			jsonPths = lst.toArray(buf);
 		}
 
 		private boolean skipChild;
@@ -89,37 +89,51 @@ public class JsonProcessor {
 			return skipChild;
 		}
 		public void shouldSkipChild(boolean skip) {
-			this.skipChild = skip;
+			skipChild = skip;
 		}
 
 		public Config() {
+			cmmd = "default";
 			skipChild = true;
-			oper = "default";
 		}
 
 		public final String usage() {
 			return
 				"JsonProcessor options:\n" +
+				"   [COMMAND]\n" +
 				"   {-i FILE | --input-file=FILE}\n" +
 				"   {-p PATH | --lookup-path=PATH}\n" +
-				"   {-o OPER | --operation=OPER}\n" +
 				"   {-s | --do-not-skip}";
 		}
 	}
 
+	/**
+	 * Parse the supplied command-line arguments into a `Config` object.
+	 * @param args arguments from the command-line.
+	 * @return the corresponding `Config` object.
+	 */
 	public static final Config parse(String[] args) {
 		String key, str;
 		int idx, len, cnt = 0;
 
 		Config cfg = new Config();
-		for (int i = 0; i < args.length; i ++) {
+
+		if (args.length < 1) {
+			throw new RuntimeException(String.format("missing argument%n%s", cfg.usage()));
+		}
+		cfg.cmmd = args[0];
+
+		if (args.length < 2) {
+			return cfg;
+		}
+		for (int i = 1; i < args.length; i ++) {
 			len = args[i].length();
 			idx = args[i].lastIndexOf("=");
 			key = (len >= 5 && args[i].startsWith("--") && idx >= 3 && idx < (len - 1)) ? args[i].substring(0, idx) : args[i];
 			switch (key) {
 				case "-i":
 					i ++;
-					if (i >= args.length) throw new RuntimeException("missing input filename in the command line arguments");
+					if (i >= args.length) throw new RuntimeException("missing input filename in the command-line arguments");
 					cfg.inFile = args[i];
 					cnt ++;
 					break;
@@ -131,22 +145,12 @@ public class JsonProcessor {
 				case "--lookup-path=":
 					if (key.equals("-p")) {
 						i ++;
-						if (i >= args.length) throw new RuntimeException("missing json lookup path in the command line arguments");
+						if (i >= args.length) throw new RuntimeException("missing json lookup path in the command-line arguments");
 						str = args[i];
 					} else {
 						str = args[i].substring(idx);
 					}
 					cfg.setJsonPath(str.split("[\\s]*[.][\\s]*"));
-					cnt ++;
-					break;
-				case "-o":
-					i ++;
-					if (i >= args.length) throw new RuntimeException("missing operation identifier in the command line arguments");
-					cfg.oper = args[i];
-					cnt ++;
-					break;
-				case "--operation=":
-					cfg.oper = args[i].substring(idx);
 					cnt ++;
 					break;
 				case "-s":
@@ -175,20 +179,15 @@ public class JsonProcessor {
 		);
 	}
 
-	private static final void parse(
+	private static final void parseJson(
 		JsonParser parser,
-		String[][] lkup,
+		String[] lookup,
 		boolean skip,
 		Action action
 	) throws JsonParseException, IOException {
 		JsonToken token = parser.nextToken();
 		if (token != JsonToken.START_OBJECT) {
 			throw new RuntimeException("expecting root to be an object");
-		}
-
-		String[] lookup = null;
-		if (lkup != null && lkup.length > 0) {
-			lookup = lkup[0];
 		}
 
 		String key;
@@ -309,86 +308,95 @@ public class JsonProcessor {
 		}
 	}
 
-	private static class Result {
-		public String key;
-		public TreeNode out;
-	};
-	private static final Result run(
-		JsonParser parser,
-		String[][] lookup,
-		boolean skip
-	) {
-		JsonProcessorOutput action = new JsonProcessorOutput();
-		new Thread() {
-			public final void run() {
-				try {
-					parse(parser, lookup, skip, action);
-				} catch (IOException e) {
-					e.printStackTrace();
-				}
-			}
-		}.start();
+	// private static class Result {
+	// 	public String key;
+	// 	public JsonNode out;
+	// };
+	// private static final Result run(
+	// 	JsonParser parser,
+	// 	String[] lookup,
+	// 	boolean skip
+	// ) {
+	// 	JsonProcessorOutput action = new JsonProcessorOutput();
+	// 	new Thread() {
+	// 		public final void run() {
+	// 			try {
+	// 				parseJson(parser, lookup, skip, action);
+	// 			} catch (IOException e) {
+	// 				e.printStackTrace();
+	// 			}
+	// 		}
+	// 	}.start();
 
-		int count = 19;
-		while (!action.isReady() && count > 0) {
-			try {
-				Thread.sleep(500);
-			} catch (InterruptedException e) {}
-			count --;
-		}
+	// 	int count = 19;
+	// 	while (!action.isReady() && count > 0) {
+	// 		try {
+	// 			Thread.sleep(500);
+	// 		} catch (InterruptedException e) {}
+	// 		count --;
+	// 	}
 
-		if (!action.isReady()) {
-			throw new RuntimeException("Parse failed");
-		}
-		Result rslt = new Result();
-		rslt.key = action.keys();
-		rslt.out = action.output();
-		return rslt;
-	}
+	// 	if (!action.isReady()) {
+	// 		throw new RuntimeException("parse timed out");
+	// 	}
+	// 	Result rslt = new Result();
+	// 	rslt.key = action.keys();
+	// 	rslt.out = action.output();
+	// 	return rslt;
+	// }
 
 	/**
 	 * Process the given input JSON file.
 	 * @param input // path of the input file.
-	 * @param lookup // JSON path of the item to lookup, run thru the entire file if null.
-	 * @param operation // identifier of the operation.
+	 * @param lookups // JSON path of the item to lookup, run thru the entire file if null.
+	 * @param command // identifier of the operation.
 	 * @param skip // skip processing of subtrees not in the lookup path, no effect if lookup is null.
 	 * @throws JsonParseException
 	 * @throws IOException
 	 */
 	public static final void process(
+		String command,
 		String input,
 		String output,
-		String[][] lookup,
-		String operation,
+		String[][] lookups,
 		boolean skip
 	) throws JsonParseException, IOException {
 		JsonFactory factory = new MappingJsonFactory();
 		JsonParser parser = factory.createParser(new File(input));
 
-		switch (operation) {
-			case "output":
-				PrintStream pnt;
-				if (output != null) {
-					pnt = new PrintStream(new FileOutputStream(output));
-				} else {
-					pnt = System.out;
-				}
+		switch (command) {
+			// case "output":
+			// 	if (lookups == null || lookups.length < 1) {
+			// 		throw new RuntimeException("nothing to lookup");
+			// 	}
 
-				Result target = run(parser, lookup, skip);
-				if (lookup == null || lookup.length <= 1) {
-					pnt.printf("\"%s\": ", target.key);
-					ObjectMapper mapper = new ObjectMapper();
-					String txt = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(target.out);
-					pnt.println(txt);
-				} else {
-					pnt.println("Work In Progress!!!!"); // TODO HERE!!!
-				}
+			// 	PrintStream pnt;
+			// 	if (output != null) {
+			// 		pnt = new PrintStream(new FileOutputStream(output));
+			// 	} else {
+			// 		pnt = System.out;
+			// 	}
 
-				break;
+			// 	ObjectMapper mapper = new ObjectMapper();
+			// 	Result target = run(parser, lookups[0], true), nxt;
+			// 	if (lookups.length == 1) {
+			// 		pnt.printf("\"%s\": ", target.key);
+			// 		pnt.println(mapper.writerWithDefaultPrettyPrinter().writeValueAsString(target.out));
+			// 	} else {
+			// 		for (int i = 1; i < lookups.length; i ++) {
+			// 			nxt = run(target.out.traverse(), lookups[i], true);
+			// 		}
+			// 	}
+
+			// 	break;
 			case "display":
 				// default behaviour
 			default:
-				parse(
+				String[] lookup = null;
+				if (lookups != null && lookups.length > 0) {
+					lookup = lookups[0];
+				}
+				parseJson(
 					parser, lookup, skip,
 					(token, key, curr, look, found, val) -> {
 						ArrayList<String> lstc = new ArrayList<>(Arrays.asList(curr));
@@ -414,10 +422,10 @@ public class JsonProcessor {
 		}
 
 		process(
+			cfg.command(),
 			cfg.inputFile(),
 			cfg.outputFile(),
 			cfg.jsonPaths(),
-			cfg.operation(),
 			cfg.isSkipChild()
 		);
 	}

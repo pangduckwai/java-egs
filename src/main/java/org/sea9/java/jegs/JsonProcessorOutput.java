@@ -1,7 +1,7 @@
 package org.sea9.java.jegs;
 
 import com.fasterxml.jackson.core.JsonToken;
-import com.fasterxml.jackson.core.TreeNode;
+import com.fasterxml.jackson.databind.JsonNode;
 
 public class JsonProcessorOutput implements JsonProcessor.Action {
 	private boolean ready;
@@ -22,8 +22,8 @@ public class JsonProcessorOutput implements JsonProcessor.Action {
 		return sb.toString();
 	}
 
-	private TreeNode out;
-	public final TreeNode output() {
+	private JsonNode out;
+	public final JsonNode output() {
 		return out;
 	}
 
@@ -41,7 +41,7 @@ public class JsonProcessorOutput implements JsonProcessor.Action {
 		Object value
 	) {
 		if (found && key != null && value != null && (token == JsonToken.START_OBJECT || token == JsonToken.START_ARRAY)) {
-			this.out = (TreeNode) value;
+			this.out = (JsonNode) value;
 			this.ks = lookup;
 			this.ready = true;
 		}
