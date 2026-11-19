@@ -1,6 +1,5 @@
 package org.sea9.java.jegs;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 
 import org.springframework.boot.CommandLineRunner;
@@ -8,6 +7,10 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.JsonToken;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
  * jegs
@@ -25,15 +28,21 @@ import org.springframework.context.annotation.Bean;
  */
 @SpringBootApplication
 public class JavaEgs {
-	// private static final String FILE = "temp/P1B_OpenAPI_Nov2025Release.postman_collection.json";
-	// private static final String[] KEYS = {"item[]", "request", "url", "raw"};
-	// private static final String FILE = "temp/P1B_UAT7 PenetrationTest2025.postman_environment.json";
-	// private static final String FILE = "temp/test.json";
-	// private static final String[] KEYS = {"tree", "branch1", "branch11"};
-	// private static final String[] KEYS = {"tree", "branch3", "leaf30[]"};
-	// private static final String[] KEYS = {"tree", "branch1", "branch10", "branch101", "leaf1012"};
-	// private static final String[] KEYS = {"values[]", "config", "hosts[]", "mtree", "mbranch1", "msg"};
-	// private static final String[] KEYS = {"values[]", "config", "hosts[]"};
+	private static final String APP_NAME = "JavaEgs: Java Examples";
+	private static final String APP_BEAN = "Bean names:";
+	private static final String CMD_BEAN = "beans";
+	private static final String CMD_DISP = "display";
+	private static final String CMD_SRLZ = "serialize";
+	private static final String CMD_DSLZ = "deserialize";
+	private static final String CMD_READ = "read";
+
+	protected static final String ROOT = "root";
+	protected static final String EMPTY = "";
+	protected static final String PERIOD = ".";
+	protected static final String COLON = ":";
+	protected static final String FOUND = " ***** FOUND %3d %3d *****";
+
+	protected static final String REGEX_COMMA = "[\\s]*[.][\\s]*";
 
 	public static void main(String[] args) {
 		SpringApplication.run(JavaEgs.class, args);
@@ -43,47 +52,72 @@ public class JavaEgs {
 	public CommandLineRunner commandLineRunner(ApplicationContext ctx) {
 		return args -> {
 			if (args.length < 1) {
-				System.out.println("JavaEgs: Java Examples");
+				System.out.println(APP_NAME);
 				return;
 			}
 			try {
 				switch (args[0].toLowerCase()) {
-					case "beans":
-						System.out.println("Bean names:");
+					case CMD_BEAN:
+						System.out.println(APP_BEAN);
 						String[] names = ctx.getBeanDefinitionNames();
 						Arrays.sort(names);
 						for (String name : names) {
 							System.out.println(name);
 						}
 						break;
-					case "display":
+					case CMD_DISP:
 						Examples.display();
 						break;
-					case "serialize":
+					case CMD_SRLZ:
 						Examples.serialize();
 						break;
-					case "deserialize":
+					case CMD_DSLZ:
 						Examples.deserialize();
 						break;
-					case "read":
+					case "test":
+						JsonProcessor.Config tmp = JsonProcessor.Config.parse(args);
+						tmp.usage();
+						break;
+					case CMD_READ:
 						if (args.length < 2) {
 							System.out.println("JavaEgs:\n Usage: java -jar target\\jegs.jar read {command} [option1 [option2 ...]]");
 							return;
 						}
-						JsonProcessor.process(
-							JsonProcessor.parse(Arrays.copyOfRange(args, 1, args.length)),
-							(token, key, curr, look, found, val, out) -> {
-								ArrayList<String> lstc = new ArrayList<>(Arrays.asList(curr));
-								ArrayList<String> lstl = new ArrayList<String>(Arrays.asList(look));
-								lstc.removeAll(lstl);
 
-								String fnd = found ? " ***** FOUND! *****" : "";
-								if (key != null && val != null) {
-									out.printf("%-9s %-21s %s %s (\"%s\")%s%n", key, token, lstl, lstc, val, fnd);
-								} else if (key != null) {
-									out.printf("%-9s %-21s %s %s%s%n", key, token, lstl, lstc, fnd);
-								} else if (val != null) {
-									out.printf("no key    %-21s %s %s (\"%s\")%s%n", token, lstl, lstc, val, fnd);
+						ObjectMapper mapper = new ObjectMapper();
+
+						JsonProcessor.process(
+							JsonProcessor.Config.parse(Arrays.copyOfRange(args, 1, args.length)),
+							(idx, seq, token, key, curr, look, found, val, out) -> {
+								StringBuilder path = new StringBuilder(ROOT);
+								if (curr.length > 0)
+									path.append(COLON).append(curr[0]);
+								for (int i = 1; i < curr.length; i ++)
+									path.append(PERIOD).append(curr[i]);
+
+								String find = EMPTY;
+								if (found) {
+									find = String.format(FOUND, seq, idx);
+									path.append(COLON).append(key);
+								} else if (key != null && token != JsonToken.START_OBJECT && token != JsonToken.START_ARRAY) {
+									path.append(COLON).append(key);
+								}
+
+								if (val != null) {
+									if (token == JsonToken.START_OBJECT || token == JsonToken.START_ARRAY) {
+										try {
+											System.out.printf(
+												"%-9s %-21s %-49s%s%n%s%n", key == null ? "<null>" : key, token, path, find,
+												mapper.writerWithDefaultPrettyPrinter().writeValueAsString(val)
+											);
+										} catch (JsonProcessingException e) {
+											e.printStackTrace();
+										}
+									} else {
+										System.out.printf("%-9s %-21s %-49s (\"%s\")%s%n", key == null ? "<null>" : key, token, path, val, find);
+									}
+								} else {
+									System.out.printf("%-9s %-21s %-49s%s%n", key == null ? "<null>" : key, token, path, find);
 								}
 							}
 						);
