@@ -6,7 +6,9 @@ import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Stack;
 
 import com.fasterxml.jackson.core.JsonFactory;
@@ -218,7 +220,7 @@ public class JsonProcessor {
 	 * @throws JsonParseException
 	 * @throws IOException
 	 */
-	@SuppressWarnings("null")
+	// @SuppressWarnings("null")
 	public static final void process(
 		JsonParser parser,
 		PrintStream out,
@@ -246,6 +248,8 @@ public class JsonProcessor {
 		for (idx = 0; idx < lookCnt; idx ++)
 			lookupPaths.add(new Stack<>());
 
+		Stack<String> currArray = new Stack<>();
+		Map<String, Integer> arrayIdx = new HashMap<>();
 		int seq = 0;
 
 		while (token != null) {
@@ -253,7 +257,7 @@ public class JsonProcessor {
 			for (idx = 0; idx < lookCnt; idx ++)
 				heights[idx] = lookupPaths.get(idx).size();
 
-			boolean ontrack = false, found = false;
+			boolean ontrack = false, matched = false;
 			switch (token) {
 				case START_OBJECT:
 					if (lookCnt > 0) {
@@ -261,7 +265,7 @@ public class JsonProcessor {
 							if (lookups[idx][heights[idx]].equals(curr)) {
 								ontrack = true;
 								if (heights[idx] == lookups[idx].length - 1) { // found!
-									found = true;
+									matched = true;
 
 									// do not push to stacks here because after 'readValueAsTree', the corresponding END_OBJECT event is not fired
 									action.exec(idx, seq, token, curr, currPath.toArray(buff), lookupPaths.get(idx).toArray(buff), true, parser.readValueAsTree(), out);
@@ -270,7 +274,7 @@ public class JsonProcessor {
 								}
 							}
 						}
-						if (found) {
+						if (matched) {
 							break;
 						} else if (curr != null) {
 							if (ontrack || !skip) {
@@ -278,11 +282,19 @@ public class JsonProcessor {
 							} else {
 								parser.skipChildren();
 							}
+						} else {
+							if (!currArray.isEmpty()) {
+								if (!arrayIdx.containsKey(currArray.peek())) {
+									arrayIdx.put(currArray.peek(), 0);
+								} else {
+									arrayIdx.merge(currArray.peek(), 1, (a, b) -> a + b);
+								}
+							}
 						}
 					} else if (curr != null) {
 						currPath.push(curr);
 					}
-					action.exec(-1, -1, token, curr, currPath.toArray(buff), null, false, null, out);
+					action.exec(-1, -1, token, curr, currPath.toArray(buff), null, false, currArray.isEmpty() ? null : String.format("!!! \"%s\": %d", currArray.peek(), arrayIdx.get(currArray.peek())), out);
 					break;
 				case END_OBJECT:
 					if (!currPath.isEmpty() && currPath.peek().equals(curr)) {
@@ -301,7 +313,7 @@ public class JsonProcessor {
 							if (curr != null && lookups[idx][heights[idx]].startsWith(curr) && lookups[idx][heights[idx]].endsWith("[]") && curr.length() == lookups[idx][heights[idx]].length() - 2) {
 								ontrack = true;
 								if (heights[idx] == lookups[idx].length - 1) { // found!
-									found = true;
+									matched = true;
 
 									// do not push to stacks here because after 'readValueAsTree', the corresponding END_ARRAY event is not fired
 									action.exec(idx, seq, token, curr, currPath.toArray(buff), lookupPaths.get(idx).toArray(buff), true, parser.readValueAsTree(), out);
@@ -310,11 +322,12 @@ public class JsonProcessor {
 								}
 							}
 						}
-						if (found) {
+						if (matched) {
 							break;
 						} else if (curr != null) {
 							if (ontrack || !skip) {
 								currPath.push(curr);
+								currArray.push(curr);
 							} else {
 								parser.skipChildren();
 							}
@@ -328,6 +341,9 @@ public class JsonProcessor {
 					if (!currPath.isEmpty() && currPath.peek().equals(curr)) {
 						currPath.pop();
 					}
+					if (!currArray.isEmpty() && currArray.peek().equals(curr)) {
+						arrayIdx.remove(currArray.pop());
+					}
 					for (idx = 0; idx < lookCnt; idx ++) {
 						if (heights[idx] > 0 && lookupPaths.get(idx).peek().equals(curr)) {
 							lookupPaths.get(idx).pop();
@@ -338,57 +354,57 @@ public class JsonProcessor {
 				case VALUE_STRING:
 					for (idx = 0; idx < lookCnt; idx ++) {
 						if (lookCnt > 0 && lookupPaths.get(idx).size() == (lookups[idx].length - 1) && lookups[idx][lookups[idx].length-1].equals(curr)) {
-							found = true;
+							matched = true;
 							action.exec(idx, seq, token, curr, currPath.toArray(buff), lookupPaths.get(idx).toArray(buff), true, parser.getText(), out);
 						}
 					}
-					if (!found) action.exec(-1, -1, token, curr, currPath.toArray(buff), null, false, parser.getText(), out);
+					if (!matched) action.exec(-1, -1, token, curr, currPath.toArray(buff), null, false, parser.getText(), out);
 					break;
 				case VALUE_TRUE:
 				case VALUE_FALSE:
 					for (idx = 0; idx < lookCnt; idx ++) {
 						if (lookCnt > 0 && lookupPaths.get(idx).size() == (lookups[idx].length - 1) && lookups[idx][lookups[idx].length-1].equals(curr)) {
-							found = true;
+							matched = true;
 							action.exec(idx, seq, token, curr, currPath.toArray(buff), lookupPaths.get(idx).toArray(buff), true, parser.getBooleanValue(), out);
 						}
 					}
-					if (!found) action.exec(-1, -1, token, curr, currPath.toArray(buff), null, false, parser.getBooleanValue(), out);
+					if (!matched) action.exec(-1, -1, token, curr, currPath.toArray(buff), null, false, parser.getBooleanValue(), out);
 					break;
 				case VALUE_NUMBER_INT:
 					for (idx = 0; idx < lookCnt; idx ++) {
 						if (lookCnt > 0 && lookupPaths.get(idx).size() == (lookups[idx].length - 1) && lookups[idx][lookups[idx].length-1].equals(curr)) {
-							found = true;
+							matched = true;
 							action.exec(idx, seq, token, curr, currPath.toArray(buff), lookupPaths.get(idx).toArray(buff), true, parser.getLongValue(), out);
 						}
 					}
-					if (!found) action.exec(-1, -1, token, curr, currPath.toArray(buff), null, false, parser.getLongValue(), out);
+					if (!matched) action.exec(-1, -1, token, curr, currPath.toArray(buff), null, false, parser.getLongValue(), out);
 					break;
 				case VALUE_NUMBER_FLOAT:
 					for (idx = 0; idx < lookCnt; idx ++) {
 						if (lookCnt > 0 && lookupPaths.get(idx).size() == (lookups[idx].length - 1) && lookups[idx][lookups[idx].length-1].equals(curr)) {
-							found = true;
+							matched = true;
 							action.exec(idx, seq, token, curr, currPath.toArray(buff), lookupPaths.get(idx).toArray(buff), true, parser.getDecimalValue(), out);
 						}
 					}
-					if (!found) action.exec(-1, -1, token, curr, currPath.toArray(buff), null, false, parser.getDecimalValue(), out);
+					if (!matched) action.exec(-1, -1, token, curr, currPath.toArray(buff), null, false, parser.getDecimalValue(), out);
 					break;
 				case VALUE_EMBEDDED_OBJECT:
 					for (idx = 0; idx < lookCnt; idx ++) {
 						if (lookCnt > 0 && lookupPaths.get(idx).size() == (lookups[idx].length - 1) && lookups[idx][lookups[idx].length-1].equals(curr)) {
-							found = true;
+							matched = true;
 							action.exec(idx, seq, token, curr, currPath.toArray(buff), lookupPaths.get(idx).toArray(buff), true, parser.getEmbeddedObject(), out);
 						}
 					}
-					if (!found) action.exec(-1, -1, token, curr, currPath.toArray(buff), null, false, parser.getEmbeddedObject(), out);
+					if (!matched) action.exec(-1, -1, token, curr, currPath.toArray(buff), null, false, parser.getEmbeddedObject(), out);
 					break;
 				case VALUE_NULL:
 					for (idx = 0; idx < lookCnt; idx ++) {
 						if (lookCnt > 0 && lookupPaths.get(idx).size() == (lookups[idx].length - 1) && lookups[idx][lookups[idx].length-1].equals(curr)) {
-							found = true;
+							matched = true;
 							action.exec(idx, seq, token, curr, currPath.toArray(buff), lookupPaths.get(idx).toArray(buff), true, null, out);
 						}
 					}
-					if (!found) action.exec(-1, -1, token, curr, currPath.toArray(buff), null, false, null, out);
+					if (!matched) action.exec(-1, -1, token, curr, currPath.toArray(buff), null, false, null, out);
 					break;
 				// case FIELD_NAME:
 				// 	break;

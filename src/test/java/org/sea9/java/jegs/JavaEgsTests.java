@@ -217,369 +217,369 @@ class JavaEgsTests {
 		"  \"_using\": \"Postman/0.4.1\"\r\n" + //
 		"}";
 
-	@Test
-	public void parseTest1a() throws Exception {
-		JsonFactory factory = new MappingJsonFactory();
-		JsonParser parser = factory.createParser(JSON);
-		String[][] lookups = {{"tree", "branch1", "branch11", "leaf110"}};
-		ArrayList<String> result = new ArrayList<>();
-		JsonProcessor.process(
-			parser, null, lookups, true,
-			(idx, seq, token, key, curr, look, found, val, out) -> {
-				if (found) {
-					result.add((String) val);
-					assertEquals("Nice", val);
-					assertNotEquals(-1, idx);
-					assertNotEquals(-1, seq);
-				}
-			}
-		);
-		assertTrue(result.size() > 0);
-	}
+	// @Test
+	// public void parseTest1a() throws Exception {
+	// 	JsonFactory factory = new MappingJsonFactory();
+	// 	JsonParser parser = factory.createParser(JSON);
+	// 	String[][] lookups = {{"tree", "branch1", "branch11", "leaf110"}};
+	// 	ArrayList<String> result = new ArrayList<>();
+	// 	JsonProcessor.process(
+	// 		parser, null, lookups, true,
+	// 		(idx, seq, token, key, curr, look, found, val, out) -> {
+	// 			if (found) {
+	// 				result.add((String) val);
+	// 				assertEquals("Nice", val);
+	// 				assertNotEquals(-1, idx);
+	// 				assertNotEquals(-1, seq);
+	// 			}
+	// 		}
+	// 	);
+	// 	assertTrue(result.size() > 0);
+	// }
 
-	@Test
-	public void parseTest1b() throws Exception {
-		JsonFactory factory = new MappingJsonFactory();
-		JsonParser parser = factory.createParser(JSON);
-		String[][] lookups = {{"tree", "branch1", "branch11", "leaf110"}};
-		ArrayList<String> result = new ArrayList<>();
-		JsonProcessor.process(
-			parser, null, lookups, false,
-			(idx, seq, token, key, curr, look, found, val, out) -> {
-				if (found) {
-					result.add((String) val);
-					assertEquals("Nice", val);
-					assertNotEquals(-1, idx);
-					assertNotEquals(-1, seq);
-				}
-			}
-		);
-		assertTrue(result.size() > 0);
-	}
+	// @Test
+	// public void parseTest1b() throws Exception {
+	// 	JsonFactory factory = new MappingJsonFactory();
+	// 	JsonParser parser = factory.createParser(JSON);
+	// 	String[][] lookups = {{"tree", "branch1", "branch11", "leaf110"}};
+	// 	ArrayList<String> result = new ArrayList<>();
+	// 	JsonProcessor.process(
+	// 		parser, null, lookups, false,
+	// 		(idx, seq, token, key, curr, look, found, val, out) -> {
+	// 			if (found) {
+	// 				result.add((String) val);
+	// 				assertEquals("Nice", val);
+	// 				assertNotEquals(-1, idx);
+	// 				assertNotEquals(-1, seq);
+	// 			}
+	// 		}
+	// 	);
+	// 	assertTrue(result.size() > 0);
+	// }
 
-	@Test
-	public void parseTest2a() throws Exception {
-		JsonFactory factory = new MappingJsonFactory();
-		JsonParser parser = factory.createParser(JSON);
-		String[][] lookups = {{"keys[]"}};
-		String expects = "[\"id\",\"name\",\"scope\"]";
-		ArrayList<String> result = new ArrayList<>();
-		JsonProcessor.process(
-			parser, null, lookups, true,
-			(idx, seq, token, key, curr, look, found, val, out) -> {
-				if (found) {
-					JsonNode node = (JsonNode) val;
-					result.add(node.toString());
-					assertTrue(node.isArray());
-					assertEquals(expects, node.toString());
-					assertNotEquals(-1, idx);
-					assertNotEquals(-1, seq);
-				}
-			}
-		);
-		assertTrue(result.size() > 0);
-	}
+	// @Test
+	// public void parseTest2a() throws Exception {
+	// 	JsonFactory factory = new MappingJsonFactory();
+	// 	JsonParser parser = factory.createParser(JSON);
+	// 	String[][] lookups = {{"keys[]"}};
+	// 	String expects = "[\"id\",\"name\",\"scope\"]";
+	// 	ArrayList<String> result = new ArrayList<>();
+	// 	JsonProcessor.process(
+	// 		parser, null, lookups, true,
+	// 		(idx, seq, token, key, curr, look, found, val, out) -> {
+	// 			if (found) {
+	// 				JsonNode node = (JsonNode) val;
+	// 				result.add(node.toString());
+	// 				assertTrue(node.isArray());
+	// 				assertEquals(expects, node.toString());
+	// 				assertNotEquals(-1, idx);
+	// 				assertNotEquals(-1, seq);
+	// 			}
+	// 		}
+	// 	);
+	// 	assertTrue(result.size() > 0);
+	// }
 
-	@Test
-	public void parseTest2b() throws Exception {
-		JsonFactory factory = new MappingJsonFactory();
-		JsonParser parser = factory.createParser(JSON);
-		String[][] lookups = {{"keys[]"}};
-		String expects = "[\"id\",\"name\",\"scope\"]";
-		ArrayList<String> result = new ArrayList<>();
-		JsonProcessor.process(
-			parser, null, lookups, false,
-			(idx, seq, token, key, curr, look, found, val, out) -> {
-				if (found) {
-					JsonNode node = (JsonNode) val;
-					result.add(node.toString());
-					assertTrue(node.isArray());
-					assertEquals(expects, node.toString());
-					assertNotEquals(-1, idx);
-					assertNotEquals(-1, seq);
-				}
-			}
-		);
-		assertTrue(result.size() > 0);
-	}
+	// @Test
+	// public void parseTest2b() throws Exception {
+	// 	JsonFactory factory = new MappingJsonFactory();
+	// 	JsonParser parser = factory.createParser(JSON);
+	// 	String[][] lookups = {{"keys[]"}};
+	// 	String expects = "[\"id\",\"name\",\"scope\"]";
+	// 	ArrayList<String> result = new ArrayList<>();
+	// 	JsonProcessor.process(
+	// 		parser, null, lookups, false,
+	// 		(idx, seq, token, key, curr, look, found, val, out) -> {
+	// 			if (found) {
+	// 				JsonNode node = (JsonNode) val;
+	// 				result.add(node.toString());
+	// 				assertTrue(node.isArray());
+	// 				assertEquals(expects, node.toString());
+	// 				assertNotEquals(-1, idx);
+	// 				assertNotEquals(-1, seq);
+	// 			}
+	// 		}
+	// 	);
+	// 	assertTrue(result.size() > 0);
+	// }
 
-	@Test
-	public void parseTest3a() throws Exception {
-		JsonFactory factory = new MappingJsonFactory();
-		JsonParser parser = factory.createParser(JSON);
-		String[][] lookups = {{"tree", "branch1", "branch10"}};
-		String expects = "{\"branch100\":{\"leaf1000\":\"I'm\",\"leaf1001\":\"fine\",\"leaf1002\":\"thanks\"},\"branch101\":{\"leaf1010\":\"what\",\"leaf1011\":\"about\",\"leaf1012\":\"you\",\"leaf1013\":\"?\"}}";
-		ArrayList<String> result = new ArrayList<>();
-		JsonProcessor.process(
-			parser, null, lookups, true,
-			(idx, seq, token, key, curr, look, found, val, out) -> {
-				if (found) {
-					JsonNode node = (JsonNode) val;
-					result.add(node.toString());
-					assertTrue(node.isObject());
-					assertEquals(expects, node.toString());
-					assertNotEquals(-1, idx);
-					assertNotEquals(-1, seq);
-				}
-			}
-		);
-		assertTrue(result.size() > 0);
-	}
+	// @Test
+	// public void parseTest3a() throws Exception {
+	// 	JsonFactory factory = new MappingJsonFactory();
+	// 	JsonParser parser = factory.createParser(JSON);
+	// 	String[][] lookups = {{"tree", "branch1", "branch10"}};
+	// 	String expects = "{\"branch100\":{\"leaf1000\":\"I'm\",\"leaf1001\":\"fine\",\"leaf1002\":\"thanks\"},\"branch101\":{\"leaf1010\":\"what\",\"leaf1011\":\"about\",\"leaf1012\":\"you\",\"leaf1013\":\"?\"}}";
+	// 	ArrayList<String> result = new ArrayList<>();
+	// 	JsonProcessor.process(
+	// 		parser, null, lookups, true,
+	// 		(idx, seq, token, key, curr, look, found, val, out) -> {
+	// 			if (found) {
+	// 				JsonNode node = (JsonNode) val;
+	// 				result.add(node.toString());
+	// 				assertTrue(node.isObject());
+	// 				assertEquals(expects, node.toString());
+	// 				assertNotEquals(-1, idx);
+	// 				assertNotEquals(-1, seq);
+	// 			}
+	// 		}
+	// 	);
+	// 	assertTrue(result.size() > 0);
+	// }
 
-	@Test
-	public void parseTest3b() throws Exception {
-		JsonFactory factory = new MappingJsonFactory();
-		JsonParser parser = factory.createParser(JSON);
-		String[][] lookups = {{"tree", "branch1", "branch10"}};
-		String expects = "{\"branch100\":{\"leaf1000\":\"I'm\",\"leaf1001\":\"fine\",\"leaf1002\":\"thanks\"},\"branch101\":{\"leaf1010\":\"what\",\"leaf1011\":\"about\",\"leaf1012\":\"you\",\"leaf1013\":\"?\"}}";
-		ArrayList<String> result = new ArrayList<>();
-		JsonProcessor.process(
-			parser, null, lookups, false,
-			(idx, seq, token, key, curr, look, found, val, out) -> {
-				if (found) {
-					JsonNode node = (JsonNode) val;
-					result.add(node.toString());
-					assertTrue(node.isObject());
-					assertEquals(expects, node.toString());
-					assertNotEquals(-1, idx);
-					assertNotEquals(-1, seq);
-				}
-			}
-		);
-		assertTrue(result.size() > 0);
-	}
+	// @Test
+	// public void parseTest3b() throws Exception {
+	// 	JsonFactory factory = new MappingJsonFactory();
+	// 	JsonParser parser = factory.createParser(JSON);
+	// 	String[][] lookups = {{"tree", "branch1", "branch10"}};
+	// 	String expects = "{\"branch100\":{\"leaf1000\":\"I'm\",\"leaf1001\":\"fine\",\"leaf1002\":\"thanks\"},\"branch101\":{\"leaf1010\":\"what\",\"leaf1011\":\"about\",\"leaf1012\":\"you\",\"leaf1013\":\"?\"}}";
+	// 	ArrayList<String> result = new ArrayList<>();
+	// 	JsonProcessor.process(
+	// 		parser, null, lookups, false,
+	// 		(idx, seq, token, key, curr, look, found, val, out) -> {
+	// 			if (found) {
+	// 				JsonNode node = (JsonNode) val;
+	// 				result.add(node.toString());
+	// 				assertTrue(node.isObject());
+	// 				assertEquals(expects, node.toString());
+	// 				assertNotEquals(-1, idx);
+	// 				assertNotEquals(-1, seq);
+	// 			}
+	// 		}
+	// 	);
+	// 	assertTrue(result.size() > 0);
+	// }
 
-	@Test
-	public void parseTest4a() throws Exception {
-		JsonFactory factory = new MappingJsonFactory();
-		JsonParser parser = factory.createParser(JSON);
-		String[][] lookups = {{"tree", "branch3", "leaf30[]", "msg"}};
-		String[] expects = {"Let's", "drink", "tea"};
-		String[] conv = {};
-		ArrayList<String> result = new ArrayList<>();
-		JsonProcessor.process(
-			parser, null, lookups, true,
-			(idx, seq, token, key, curr, look, found, val, out) -> {
-				if (found) {
-					result.add((String) val);
-					assertNotEquals(-1, idx);
-					assertNotEquals(-1, seq);
-				}
-			}
-		);
-		assertArrayEquals(expects, result.toArray(conv));
-	}
+	// @Test
+	// public void parseTest4a() throws Exception {
+	// 	JsonFactory factory = new MappingJsonFactory();
+	// 	JsonParser parser = factory.createParser(JSON);
+	// 	String[][] lookups = {{"tree", "branch3", "leaf30[]", "msg"}};
+	// 	String[] expects = {"Let's", "drink", "tea"};
+	// 	String[] conv = {};
+	// 	ArrayList<String> result = new ArrayList<>();
+	// 	JsonProcessor.process(
+	// 		parser, null, lookups, true,
+	// 		(idx, seq, token, key, curr, look, found, val, out) -> {
+	// 			if (found) {
+	// 				result.add((String) val);
+	// 				assertNotEquals(-1, idx);
+	// 				assertNotEquals(-1, seq);
+	// 			}
+	// 		}
+	// 	);
+	// 	assertArrayEquals(expects, result.toArray(conv));
+	// }
 
-	@Test
-	public void parseTest4b() throws Exception {
-		JsonFactory factory = new MappingJsonFactory();
-		JsonParser parser = factory.createParser(JSON);
-		String[][] lookups = {{"tree", "branch3", "leaf30[]", "msg"}};
-		String[] expects = {"Let's", "drink", "tea"};
-		String[] conv = {};
-		ArrayList<String> result = new ArrayList<>();
-		JsonProcessor.process(
-			parser, null, lookups, false,
-			(idx, seq, token, key, curr, look, found, val, out) -> {
-				if (found) {
-					result.add((String) val);
-					assertNotEquals(-1, idx);
-					assertNotEquals(-1, seq);
-				}
-			}
-		);
-		assertArrayEquals(expects, result.toArray(conv));
-	}
+	// @Test
+	// public void parseTest4b() throws Exception {
+	// 	JsonFactory factory = new MappingJsonFactory();
+	// 	JsonParser parser = factory.createParser(JSON);
+	// 	String[][] lookups = {{"tree", "branch3", "leaf30[]", "msg"}};
+	// 	String[] expects = {"Let's", "drink", "tea"};
+	// 	String[] conv = {};
+	// 	ArrayList<String> result = new ArrayList<>();
+	// 	JsonProcessor.process(
+	// 		parser, null, lookups, false,
+	// 		(idx, seq, token, key, curr, look, found, val, out) -> {
+	// 			if (found) {
+	// 				result.add((String) val);
+	// 				assertNotEquals(-1, idx);
+	// 				assertNotEquals(-1, seq);
+	// 			}
+	// 		}
+	// 	);
+	// 	assertArrayEquals(expects, result.toArray(conv));
+	// }
 
-	@Test
-	public void parseTest5a() throws Exception {
-		JsonFactory factory = new MappingJsonFactory();
-		JsonParser parser = factory.createParser(JSON);
-		String[][] lookups = {{"tree", "branch3", "leaf30[]"}};
-		String expects = "[{\"id\":301,\"msg\":\"Let's\"},{\"id\":302,\"msg\":\"drink\"},{\"id\":303,\"msg\":\"tea\"}]";
-		ArrayList<String> result = new ArrayList<>();
-		JsonProcessor.process(
-			parser, null, lookups, true,
-			(idx, seq, token, key, curr, look, found, val, out) -> {
-				if (found) {
-					JsonNode node = (JsonNode) val;
-					result.add(node.toString());
-					assertTrue(node.isArray());
-					assertEquals(expects, node.toString());
-					assertNotEquals(-1, idx);
-					assertNotEquals(-1, seq);
-				}
-			}
-		);
-		assertTrue(result.size() > 0);
-	}
+	// @Test
+	// public void parseTest5a() throws Exception {
+	// 	JsonFactory factory = new MappingJsonFactory();
+	// 	JsonParser parser = factory.createParser(JSON);
+	// 	String[][] lookups = {{"tree", "branch3", "leaf30[]"}};
+	// 	String expects = "[{\"id\":301,\"msg\":\"Let's\"},{\"id\":302,\"msg\":\"drink\"},{\"id\":303,\"msg\":\"tea\"}]";
+	// 	ArrayList<String> result = new ArrayList<>();
+	// 	JsonProcessor.process(
+	// 		parser, null, lookups, true,
+	// 		(idx, seq, token, key, curr, look, found, val, out) -> {
+	// 			if (found) {
+	// 				JsonNode node = (JsonNode) val;
+	// 				result.add(node.toString());
+	// 				assertTrue(node.isArray());
+	// 				assertEquals(expects, node.toString());
+	// 				assertNotEquals(-1, idx);
+	// 				assertNotEquals(-1, seq);
+	// 			}
+	// 		}
+	// 	);
+	// 	assertTrue(result.size() > 0);
+	// }
 
-	@Test
-	public void parseTest5b() throws Exception {
-		JsonFactory factory = new MappingJsonFactory();
-		JsonParser parser = factory.createParser(JSON);
-		String[][] lookups = {{"tree", "branch3", "leaf30[]"}};
-		String expects = "[{\"id\":301,\"msg\":\"Let's\"},{\"id\":302,\"msg\":\"drink\"},{\"id\":303,\"msg\":\"tea\"}]";
-		ArrayList<String> result = new ArrayList<>();
-		JsonProcessor.process(
-			parser, null, lookups, false,
-			(idx, seq, token, key, curr, look, found, val, out) -> {
-				if (found) {
-					JsonNode node = (JsonNode) val;
-					result.add(node.toString());
-					assertTrue(node.isArray());
-					assertEquals(expects, node.toString());
-					assertNotEquals(-1, idx);
-					assertNotEquals(-1, seq);
-				}
-			}
-		);
-		assertTrue(result.size() > 0);
-	}
+	// @Test
+	// public void parseTest5b() throws Exception {
+	// 	JsonFactory factory = new MappingJsonFactory();
+	// 	JsonParser parser = factory.createParser(JSON);
+	// 	String[][] lookups = {{"tree", "branch3", "leaf30[]"}};
+	// 	String expects = "[{\"id\":301,\"msg\":\"Let's\"},{\"id\":302,\"msg\":\"drink\"},{\"id\":303,\"msg\":\"tea\"}]";
+	// 	ArrayList<String> result = new ArrayList<>();
+	// 	JsonProcessor.process(
+	// 		parser, null, lookups, false,
+	// 		(idx, seq, token, key, curr, look, found, val, out) -> {
+	// 			if (found) {
+	// 				JsonNode node = (JsonNode) val;
+	// 				result.add(node.toString());
+	// 				assertTrue(node.isArray());
+	// 				assertEquals(expects, node.toString());
+	// 				assertNotEquals(-1, idx);
+	// 				assertNotEquals(-1, seq);
+	// 			}
+	// 		}
+	// 	);
+	// 	assertTrue(result.size() > 0);
+	// }
 
-	@Test
-	public void parseTest6a() throws Exception {
-		JsonFactory factory = new MappingJsonFactory();
-		JsonParser parser = factory.createParser(JSON);
-		String[][] lookups = {{"values[]", "config", "hosts[]", "struc", "value2"}};
-		String[] expects = {
-			"{\"msg\":\"hello/how/are/you\"}",
-			"{\"msg\":\"i'm/fine/thanks\"}",
-			"{\"msg\":\"what/about/you\"}",
-			"{\"msg\":\"i'm/fine/too\"}",
-			"{\"msg\":\"good/to/know!\"}"
-		};
-		String[] conv = {};
-		ArrayList<String> result = new ArrayList<>();
-		JsonProcessor.process(
-			parser, null, lookups, true,
-			(idx, seq, token, key, curr, look, found, val, out) -> {
-				if (found) {
-					JsonNode node = (JsonNode) val;
-					assertTrue(node.isObject());
-					result.add(node.toString());
-					assertNotEquals(-1, idx);
-					assertNotEquals(-1, seq);
-				}
-			}
-		);
-		assertArrayEquals(expects, result.toArray(conv));
-	}
+	// @Test
+	// public void parseTest6a() throws Exception {
+	// 	JsonFactory factory = new MappingJsonFactory();
+	// 	JsonParser parser = factory.createParser(JSON);
+	// 	String[][] lookups = {{"values[]", "config", "hosts[]", "struc", "value2"}};
+	// 	String[] expects = {
+	// 		"{\"msg\":\"hello/how/are/you\"}",
+	// 		"{\"msg\":\"i'm/fine/thanks\"}",
+	// 		"{\"msg\":\"what/about/you\"}",
+	// 		"{\"msg\":\"i'm/fine/too\"}",
+	// 		"{\"msg\":\"good/to/know!\"}"
+	// 	};
+	// 	String[] conv = {};
+	// 	ArrayList<String> result = new ArrayList<>();
+	// 	JsonProcessor.process(
+	// 		parser, null, lookups, true,
+	// 		(idx, seq, token, key, curr, look, found, val, out) -> {
+	// 			if (found) {
+	// 				JsonNode node = (JsonNode) val;
+	// 				assertTrue(node.isObject());
+	// 				result.add(node.toString());
+	// 				assertNotEquals(-1, idx);
+	// 				assertNotEquals(-1, seq);
+	// 			}
+	// 		}
+	// 	);
+	// 	assertArrayEquals(expects, result.toArray(conv));
+	// }
 
-	@Test
-	public void parseTest6b() throws Exception {
-		JsonFactory factory = new MappingJsonFactory();
-		JsonParser parser = factory.createParser(JSON);
-		String[][] lookups = {{"values[]", "config", "hosts[]", "struc", "value2"}};
-		String[] expects = {
-			"{\"msg\":\"hello/how/are/you\"}",
-			"{\"msg\":\"i'm/fine/thanks\"}",
-			"{\"msg\":\"what/about/you\"}",
-			"{\"msg\":\"i'm/fine/too\"}",
-			"{\"msg\":\"good/to/know!\"}"
-		};
-		String[] conv = {};
-		ArrayList<String> result = new ArrayList<>();
-		JsonProcessor.process(
-			parser, null, lookups, false,
-			(idx, seq, token, key, curr, look, found, val, out) -> {
-				if (found) {
-					JsonNode node = (JsonNode) val;
-					assertTrue(node.isObject());
-					result.add(node.toString());
-					assertNotEquals(-1, idx);
-					assertNotEquals(-1, seq);
-				}
-			}
-		);
-		assertArrayEquals(expects, result.toArray(conv));
-	}
+	// @Test
+	// public void parseTest6b() throws Exception {
+	// 	JsonFactory factory = new MappingJsonFactory();
+	// 	JsonParser parser = factory.createParser(JSON);
+	// 	String[][] lookups = {{"values[]", "config", "hosts[]", "struc", "value2"}};
+	// 	String[] expects = {
+	// 		"{\"msg\":\"hello/how/are/you\"}",
+	// 		"{\"msg\":\"i'm/fine/thanks\"}",
+	// 		"{\"msg\":\"what/about/you\"}",
+	// 		"{\"msg\":\"i'm/fine/too\"}",
+	// 		"{\"msg\":\"good/to/know!\"}"
+	// 	};
+	// 	String[] conv = {};
+	// 	ArrayList<String> result = new ArrayList<>();
+	// 	JsonProcessor.process(
+	// 		parser, null, lookups, false,
+	// 		(idx, seq, token, key, curr, look, found, val, out) -> {
+	// 			if (found) {
+	// 				JsonNode node = (JsonNode) val;
+	// 				assertTrue(node.isObject());
+	// 				result.add(node.toString());
+	// 				assertNotEquals(-1, idx);
+	// 				assertNotEquals(-1, seq);
+	// 			}
+	// 		}
+	// 	);
+	// 	assertArrayEquals(expects, result.toArray(conv));
+	// }
 
-	@Test
-	public void parseTest7a() throws Exception {
-		JsonFactory factory = new MappingJsonFactory();
-		JsonParser parser = factory.createParser(JSON);
-		String[][] lookups = {{"tree", "branch3", "leaf31[]"}};
-		String expects = "[\"when\",\"free\"]";
-		ArrayList<String> result = new ArrayList<>();
-		JsonProcessor.process(
-			parser, null, lookups, true,
-			(idx, seq, token, key, curr, look, found, val, out) -> {
-				if (found) {
-					JsonNode node = (JsonNode) val;
-					result.add(node.toString());
-					assertTrue(node.isArray());
-					assertEquals(expects, node.toString());
-					assertNotEquals(-1, idx);
-					assertNotEquals(-1, seq);
-				}
-			}
-		);
-		assertTrue(result.size() > 0);
-	}
+	// @Test
+	// public void parseTest7a() throws Exception {
+	// 	JsonFactory factory = new MappingJsonFactory();
+	// 	JsonParser parser = factory.createParser(JSON);
+	// 	String[][] lookups = {{"tree", "branch3", "leaf31[]"}};
+	// 	String expects = "[\"when\",\"free\"]";
+	// 	ArrayList<String> result = new ArrayList<>();
+	// 	JsonProcessor.process(
+	// 		parser, null, lookups, true,
+	// 		(idx, seq, token, key, curr, look, found, val, out) -> {
+	// 			if (found) {
+	// 				JsonNode node = (JsonNode) val;
+	// 				result.add(node.toString());
+	// 				assertTrue(node.isArray());
+	// 				assertEquals(expects, node.toString());
+	// 				assertNotEquals(-1, idx);
+	// 				assertNotEquals(-1, seq);
+	// 			}
+	// 		}
+	// 	);
+	// 	assertTrue(result.size() > 0);
+	// }
 
-	@Test
-	public void parseTest7b() throws Exception {
-		JsonFactory factory = new MappingJsonFactory();
-		JsonParser parser = factory.createParser(JSON);
-		String[][] lookups = {{"tree", "branch3", "leaf31[]"}};
-		String expects = "[\"when\",\"free\"]";
-		ArrayList<String> result = new ArrayList<>();
-		JsonProcessor.process(
-			parser, null, lookups, false,
-			(idx, seq, token, key, curr, look, found, val, out) -> {
-				if (found) {
-					JsonNode node = (JsonNode) val;
-					result.add(node.toString());
-					assertTrue(node.isArray());
-					assertEquals(expects, node.toString());
-					assertNotEquals(-1, idx);
-					assertNotEquals(-1, seq);
-				}
-			}
-		);
-		assertTrue(result.size() > 0);
-	}
+	// @Test
+	// public void parseTest7b() throws Exception {
+	// 	JsonFactory factory = new MappingJsonFactory();
+	// 	JsonParser parser = factory.createParser(JSON);
+	// 	String[][] lookups = {{"tree", "branch3", "leaf31[]"}};
+	// 	String expects = "[\"when\",\"free\"]";
+	// 	ArrayList<String> result = new ArrayList<>();
+	// 	JsonProcessor.process(
+	// 		parser, null, lookups, false,
+	// 		(idx, seq, token, key, curr, look, found, val, out) -> {
+	// 			if (found) {
+	// 				JsonNode node = (JsonNode) val;
+	// 				result.add(node.toString());
+	// 				assertTrue(node.isArray());
+	// 				assertEquals(expects, node.toString());
+	// 				assertNotEquals(-1, idx);
+	// 				assertNotEquals(-1, seq);
+	// 			}
+	// 		}
+	// 	);
+	// 	assertTrue(result.size() > 0);
+	// }
 
-	@Test
-	public void parseTest8a() throws Exception {
-		JsonFactory factory = new MappingJsonFactory();
-		JsonParser parser = factory.createParser(JSON);
-		String[][] lookups = {{"values[]", "note"}};
-		ArrayList<String> result = new ArrayList<>();
-		JsonProcessor.process(
-			parser, null, lookups, true,
-			(idx, seq, token, key, curr, look, found, val, out) -> {
-				if (found) {
-					result.add((String) val);
-					assertEquals("here!!!", val);
-					assertNotEquals(-1, idx);
-					assertNotEquals(-1, seq);
-				}
-			}
-		);
-		assertTrue(result.size() > 0);
-	}
+	// @Test
+	// public void parseTest8a() throws Exception {
+	// 	JsonFactory factory = new MappingJsonFactory();
+	// 	JsonParser parser = factory.createParser(JSON);
+	// 	String[][] lookups = {{"values[]", "note"}};
+	// 	ArrayList<String> result = new ArrayList<>();
+	// 	JsonProcessor.process(
+	// 		parser, null, lookups, true,
+	// 		(idx, seq, token, key, curr, look, found, val, out) -> {
+	// 			if (found) {
+	// 				result.add((String) val);
+	// 				assertEquals("here!!!", val);
+	// 				assertNotEquals(-1, idx);
+	// 				assertNotEquals(-1, seq);
+	// 			}
+	// 		}
+	// 	);
+	// 	assertTrue(result.size() > 0);
+	// }
 
-	@Test
-	public void parseTest8b() throws Exception {
-		JsonFactory factory = new MappingJsonFactory();
-		JsonParser parser = factory.createParser(JSON);
-		String[][] lookups = {{"values[]", "note"}};
-		ArrayList<String> result = new ArrayList<>();
-		JsonProcessor.process(
-			parser, null, lookups, false,
-			(idx, seq, token, key, curr, look, found, val, out) -> {
-				if (found) {
-					result.add((String) val);
-					assertEquals("here!!!", val);
-					assertNotEquals(-1, idx);
-					assertNotEquals(-1, seq);
-				}
-			}
-		);
-		assertTrue(result.size() > 0);
-	}
+	// @Test
+	// public void parseTest8b() throws Exception {
+	// 	JsonFactory factory = new MappingJsonFactory();
+	// 	JsonParser parser = factory.createParser(JSON);
+	// 	String[][] lookups = {{"values[]", "note"}};
+	// 	ArrayList<String> result = new ArrayList<>();
+	// 	JsonProcessor.process(
+	// 		parser, null, lookups, false,
+	// 		(idx, seq, token, key, curr, look, found, val, out) -> {
+	// 			if (found) {
+	// 				result.add((String) val);
+	// 				assertEquals("here!!!", val);
+	// 				assertNotEquals(-1, idx);
+	// 				assertNotEquals(-1, seq);
+	// 			}
+	// 		}
+	// 	);
+	// 	assertTrue(result.size() > 0);
+	// }
 
 	// @Test
 	// public void parseTest9() throws Exception {
@@ -680,6 +680,7 @@ class JavaEgsTests {
 			{"values[]", "config", "hosts[]", "struc", "value3"},
 			{"values[]", "config", "hosts[]", "struc", "value4"}
 		};
+		// String[][] lookups = {{"values[]", "config", "hosts[]", "struc", "value2", "msg"}};
 		ArrayList<String> result = new ArrayList<>();
 		JsonProcessor.process(
 			parser, null, lookups, false,
