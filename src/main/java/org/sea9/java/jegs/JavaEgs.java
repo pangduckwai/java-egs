@@ -88,7 +88,7 @@ public class JavaEgs {
 
 						JsonProcessor.process(
 							JsonProcessor.Config.parse(Arrays.copyOfRange(args, 1, args.length)),
-							(idx, seq, token, key, curr, look, found, val, out) -> {
+							(token, key, curr, look, found, val, out) -> {
 								StringBuilder path = new StringBuilder(ROOT);
 								if (curr.length > 0)
 									path.append(COLON).append(curr[0]);
@@ -97,7 +97,7 @@ public class JavaEgs {
 
 								String find = EMPTY;
 								if (found) {
-									find = String.format(FOUND, seq, idx);
+									find = FOUND;
 									path.append(COLON).append(key);
 								} else if (key != null && token != JsonToken.START_OBJECT && token != JsonToken.START_ARRAY) {
 									path.append(COLON).append(key);

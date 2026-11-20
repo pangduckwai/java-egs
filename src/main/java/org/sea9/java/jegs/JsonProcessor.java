@@ -4,9 +4,6 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
 import java.util.Stack;
 
 import com.fasterxml.jackson.core.JsonFactory;
@@ -63,26 +60,15 @@ public class JsonProcessor {
 			outFile = file;
 		}
 
-		private String[][] jsonPths;
+		private String[] jsonPth;
 		/**
 		 * JSON path of the item to lookup, run thru the entire file if null.
 		 */
-		public String[][] jsonPaths() {
-			return jsonPths;
-		}
-		public void setJsonPaths(String[][] paths) {
-			jsonPths = paths;
+		public String[] jsonPath() {
+			return jsonPth;
 		}
 		public void setJsonPath(String[] path) {
-			List<String[]> lst;
-			String[][] buf = {{}};
-			if (this.jsonPths == null) {
-				lst = new ArrayList<>();
-			} else {
-				lst = new ArrayList<>(Arrays.asList(this.jsonPths));
-			}
-			lst.add(path);
-			jsonPths = lst.toArray(buf);
+			jsonPth = path;
 		}
 
 		private boolean skipChild;
@@ -185,8 +171,6 @@ public class JsonProcessor {
 	public interface Action {
 		/**
 		 * The abstract function in the Action functional interface.
-		 * @param index    index of the looked-up element.
-		 * @param sequence number of the match sets.
 		 * @param token    current json token from jackson.
 		 * @param key      key of the current json item.
 		 * @param current  path of keys of the current json item.
@@ -196,8 +180,6 @@ public class JsonProcessor {
 		 * @param out      stream to write processed output to.
 		 */
 		public void exec(
-			int index,
-			int sequence,
 			JsonToken token,
 			String key,
 			String[] current,
@@ -212,7 +194,7 @@ public class JsonProcessor {
 	 * Process the given JSON data traversed by the given JsonParser.
 	 * @param parser  parser to traverse the given JSON data.
 	 * @param out     stream to write processed output to.
-	 * @param lookups JSON path of the item to lookup, run thru the entire file if null.
+	 * @param lookup JSON path of the item to lookup, run thru the entire file if null.
 	 * @param skip    skip processing of subtrees not in the lookup path, no effect if lookup is null.
 	 * @param action  action to be taken on JSON elements received during parsing.
 	 * @throws JsonParseException
@@ -222,7 +204,7 @@ public class JsonProcessor {
 	public static final void process(
 		JsonParser parser,
 		PrintStream out,
-		String[][] lookups,
+		String[] lookup,
 		boolean skip,
 		Action action
 	) throws JsonParseException, IOException {
@@ -234,40 +216,31 @@ public class JsonProcessor {
 		String[] buff = {};
 		String curr;
 		Stack<String> currPath = new Stack<>();
-		List<Stack<String>> lookupPaths = new ArrayList<Stack<String>>();
-		int[] heights;
+		Stack<String> lookupPaths = new Stack<>();
+		int height = 0;
 
-		int idx, lookCnt = 0;
-		if (lookups != null && lookups.length > 0) {
-			lookCnt = lookups.length;
+		int lookCnt = 0;
+		if (lookup != null) {
+			lookCnt = 1;
 		}
-		heights = new int[lookCnt];
-		lookupPaths = new ArrayList<>();
-		for (idx = 0; idx < lookCnt; idx ++)
-			lookupPaths.add(new Stack<>());
-
-		int seq = 0;
 
 		while (token != null) {
 			curr = parser.currentName(); // The method getCurrentName() from the type JsonParser is deprecated
-			for (idx = 0; idx < lookCnt; idx ++)
-				heights[idx] = lookupPaths.get(idx).size();
+			height = lookupPaths.size();
 
 			boolean ontrack = false, found = false;
 			switch (token) {
 				case START_OBJECT:
 					if (lookCnt > 0) {
-						for (idx = 0; idx < lookCnt; idx ++) {
-							if (lookups[idx][heights[idx]].equals(curr)) {
-								ontrack = true;
-								if (heights[idx] == lookups[idx].length - 1) { // found!
-									found = true;
+						if (lookup[height].equals(curr)) {
+							ontrack = true;
+							if (height == lookup.length - 1) { // found!
+								found = true;
 
-									// do not push to stacks here because after 'readValueAsTree', the corresponding END_OBJECT event is not fired
-									action.exec(idx, seq, token, curr, currPath.toArray(buff), lookupPaths.get(idx).toArray(buff), true, parser.readValueAsTree(), out);
-								} else {
-									lookupPaths.get(idx).push(curr);
-								}
+								// do not push to stacks here because after 'readValueAsTree', the corresponding END_OBJECT event is not fired
+								action.exec(token, curr, currPath.toArray(buff), lookupPaths.toArray(buff), true, parser.readValueAsTree(), out);
+							} else {
+								lookupPaths.push(curr);
 							}
 						}
 						if (found) {
@@ -282,34 +255,30 @@ public class JsonProcessor {
 					} else if (curr != null) {
 						currPath.push(curr);
 					}
-					action.exec(-1, -1, token, curr, currPath.toArray(buff), null, false, null, out);
+					action.exec(token, curr, currPath.toArray(buff), null, false, null, out);
 					break;
 				case END_OBJECT:
 					if (!currPath.isEmpty() && currPath.peek().equals(curr)) {
 						currPath.pop();
 					}
-					for (idx = 0; idx < lookCnt; idx ++) {
-						if (heights[idx] > 0 && lookupPaths.get(idx).peek().equals(curr)) {
-							lookupPaths.get(idx).pop();
-						}
+					if (height > 0 && lookupPaths.peek().equals(curr)) {
+						lookupPaths.pop();
 					}
-					action.exec(-1, -1, token, curr, currPath.toArray(buff), null, false, null, out); // TODO TEMP
 					break;
 				case START_ARRAY:
 					if (lookCnt > 0) {
-						for (idx = 0; idx < lookCnt; idx ++) {
-							if (curr != null && lookups[idx][heights[idx]].startsWith(curr) && lookups[idx][heights[idx]].endsWith("[]") && curr.length() == lookups[idx][heights[idx]].length() - 2) {
-								ontrack = true;
-								if (heights[idx] == lookups[idx].length - 1) { // found!
-									found = true;
+						if (curr != null && lookup[height].startsWith(curr) && lookup[height].endsWith("[]") && curr.length() == lookup[height].length() - 2) {
+							ontrack = true;
+							if (height == lookup.length - 1) { // found!
+								found = true;
 
-									// do not push to stacks here because after 'readValueAsTree', the corresponding END_ARRAY event is not fired
-									action.exec(idx, seq, token, curr, currPath.toArray(buff), lookupPaths.get(idx).toArray(buff), true, parser.readValueAsTree(), out);
-								} else {
-									lookupPaths.get(idx).push(curr);
-								}
+								// do not push to stacks here because after 'readValueAsTree', the corresponding END_ARRAY event is not fired
+								action.exec(token, curr, currPath.toArray(buff), lookupPaths.toArray(buff), true, parser.readValueAsTree(), out);
+							} else {
+								lookupPaths.push(curr);
 							}
 						}
+
 						if (found) {
 							break;
 						} else if (curr != null) {
@@ -322,73 +291,58 @@ public class JsonProcessor {
 					} else if (curr != null) {
 						currPath.push(curr);
 					}
-					action.exec(-1, -1, token, curr, currPath.toArray(buff), null, false, null, out);
+					action.exec(token, curr, currPath.toArray(buff), null, false, null, out);
 					break;
 				case END_ARRAY:
 					if (!currPath.isEmpty() && currPath.peek().equals(curr)) {
 						currPath.pop();
 					}
-					for (idx = 0; idx < lookCnt; idx ++) {
-						if (heights[idx] > 0 && lookupPaths.get(idx).peek().equals(curr)) {
-							lookupPaths.get(idx).pop();
-						}
+					if (height > 0 && lookupPaths.peek().equals(curr)) {
+						lookupPaths.pop();
 					}
-					action.exec(-1, -1, token, curr, currPath.toArray(buff), null, false, null, out); // TODO TEMP
 					break;
 				case VALUE_STRING:
-					for (idx = 0; idx < lookCnt; idx ++) {
-						if (lookCnt > 0 && lookupPaths.get(idx).size() == (lookups[idx].length - 1) && lookups[idx][lookups[idx].length-1].equals(curr)) {
-							found = true;
-							action.exec(idx, seq, token, curr, currPath.toArray(buff), lookupPaths.get(idx).toArray(buff), true, parser.getText(), out);
-						}
+					if (lookCnt > 0 && lookupPaths.size() == (lookup.length - 1) && lookup[lookup.length-1].equals(curr)) {
+						found = true;
+						action.exec(token, curr, currPath.toArray(buff), lookupPaths.toArray(buff), true, parser.getText(), out);
 					}
-					if (!found) action.exec(-1, -1, token, curr, currPath.toArray(buff), null, false, parser.getText(), out);
+					if (!found) action.exec(token, curr, currPath.toArray(buff), null, false, parser.getText(), out);
 					break;
 				case VALUE_TRUE:
 				case VALUE_FALSE:
-					for (idx = 0; idx < lookCnt; idx ++) {
-						if (lookCnt > 0 && lookupPaths.get(idx).size() == (lookups[idx].length - 1) && lookups[idx][lookups[idx].length-1].equals(curr)) {
-							found = true;
-							action.exec(idx, seq, token, curr, currPath.toArray(buff), lookupPaths.get(idx).toArray(buff), true, parser.getBooleanValue(), out);
-						}
+					if (lookCnt > 0 && lookupPaths.size() == (lookup.length - 1) && lookup[lookup.length-1].equals(curr)) {
+						found = true;
+						action.exec(token, curr, currPath.toArray(buff), lookupPaths.toArray(buff), true, parser.getBooleanValue(), out);
 					}
-					if (!found) action.exec(-1, -1, token, curr, currPath.toArray(buff), null, false, parser.getBooleanValue(), out);
+					if (!found) action.exec(token, curr, currPath.toArray(buff), null, false, parser.getBooleanValue(), out);
 					break;
 				case VALUE_NUMBER_INT:
-					for (idx = 0; idx < lookCnt; idx ++) {
-						if (lookCnt > 0 && lookupPaths.get(idx).size() == (lookups[idx].length - 1) && lookups[idx][lookups[idx].length-1].equals(curr)) {
-							found = true;
-							action.exec(idx, seq, token, curr, currPath.toArray(buff), lookupPaths.get(idx).toArray(buff), true, parser.getLongValue(), out);
-						}
+					if (lookCnt > 0 && lookupPaths.size() == (lookup.length - 1) && lookup[lookup.length-1].equals(curr)) {
+						found = true;
+						action.exec(token, curr, currPath.toArray(buff), lookupPaths.toArray(buff), true, parser.getLongValue(), out);
 					}
-					if (!found) action.exec(-1, -1, token, curr, currPath.toArray(buff), null, false, parser.getLongValue(), out);
+					if (!found) action.exec(token, curr, currPath.toArray(buff), null, false, parser.getLongValue(), out);
 					break;
 				case VALUE_NUMBER_FLOAT:
-					for (idx = 0; idx < lookCnt; idx ++) {
-						if (lookCnt > 0 && lookupPaths.get(idx).size() == (lookups[idx].length - 1) && lookups[idx][lookups[idx].length-1].equals(curr)) {
-							found = true;
-							action.exec(idx, seq, token, curr, currPath.toArray(buff), lookupPaths.get(idx).toArray(buff), true, parser.getDecimalValue(), out);
-						}
+					if (lookCnt > 0 && lookupPaths.size() == (lookup.length - 1) && lookup[lookup.length-1].equals(curr)) {
+						found = true;
+						action.exec(token, curr, currPath.toArray(buff), lookupPaths.toArray(buff), true, parser.getDecimalValue(), out);
 					}
-					if (!found) action.exec(-1, -1, token, curr, currPath.toArray(buff), null, false, parser.getDecimalValue(), out);
+					if (!found) action.exec(token, curr, currPath.toArray(buff), null, false, parser.getDecimalValue(), out);
 					break;
 				case VALUE_EMBEDDED_OBJECT:
-					for (idx = 0; idx < lookCnt; idx ++) {
-						if (lookCnt > 0 && lookupPaths.get(idx).size() == (lookups[idx].length - 1) && lookups[idx][lookups[idx].length-1].equals(curr)) {
-							found = true;
-							action.exec(idx, seq, token, curr, currPath.toArray(buff), lookupPaths.get(idx).toArray(buff), true, parser.getEmbeddedObject(), out);
-						}
+					if (lookCnt > 0 && lookupPaths.size() == (lookup.length - 1) && lookup[lookup.length-1].equals(curr)) {
+						found = true;
+						action.exec(token, curr, currPath.toArray(buff), lookupPaths.toArray(buff), true, parser.getEmbeddedObject(), out);
 					}
-					if (!found) action.exec(-1, -1, token, curr, currPath.toArray(buff), null, false, parser.getEmbeddedObject(), out);
+					if (!found) action.exec(token, curr, currPath.toArray(buff), null, false, parser.getEmbeddedObject(), out);
 					break;
 				case VALUE_NULL:
-					for (idx = 0; idx < lookCnt; idx ++) {
-						if (lookCnt > 0 && lookupPaths.get(idx).size() == (lookups[idx].length - 1) && lookups[idx][lookups[idx].length-1].equals(curr)) {
-							found = true;
-							action.exec(idx, seq, token, curr, currPath.toArray(buff), lookupPaths.get(idx).toArray(buff), true, null, out);
-						}
+					if (lookCnt > 0 && lookupPaths.size() == (lookup.length - 1) && lookup[lookup.length-1].equals(curr)) {
+						found = true;
+						action.exec(token, curr, currPath.toArray(buff), lookupPaths.toArray(buff), true, null, out);
 					}
-					if (!found) action.exec(-1, -1, token, curr, currPath.toArray(buff), null, false, null, out);
+					if (!found) action.exec(token, curr, currPath.toArray(buff), null, false, null, out);
 					break;
 				// case FIELD_NAME:
 				// 	break;
@@ -406,7 +360,7 @@ public class JsonProcessor {
 	 * Process JSON from the given input file and potentially write to the given output file.
 	 * @param input   path of the input file.
 	 * @param output  path of the output file.
-	 * @param lookups JSON path of the item to lookup, run thru the entire file if null.
+	 * @param lookup JSON path of the item to lookup, run thru the entire file if null.
 	 * @param skip    skip processing of subtrees not in the lookup path, no effect if lookup is null.
 	 * @param action  action to be taken on JSON elements received during parsing.
 	 * @throws JsonParseException
@@ -415,7 +369,7 @@ public class JsonProcessor {
 	public static final void process(
 		String input,
 		String output,
-		String[][] lookups,
+		String[] lookup,
 		boolean skip,
 		Action action
 	) throws JsonParseException, IOException {
@@ -431,7 +385,7 @@ public class JsonProcessor {
 		}
 
 		process(
-			parser, out, lookups, skip, action
+			parser, out, lookup, skip, action
 		);
 	}
 
@@ -453,7 +407,7 @@ public class JsonProcessor {
 		process(
 			cfg.inputFile(),
 			cfg.outputFile(),
-			cfg.jsonPaths(),
+			cfg.jsonPath(),
 			cfg.isSkipChild(),
 			action
 		);
