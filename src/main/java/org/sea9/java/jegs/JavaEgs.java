@@ -141,14 +141,14 @@ public class JavaEgs {
 								if (token == JsonToken.START_OBJECT || token == JsonToken.START_ARRAY) {
 									try {
 										System.out.printf(
-											"\\\"%s\\\" (%d, %d) =%n%s%n", path, seq, idx,
+											"[%3d,%3d] \"%s\" =%n%s%n", path, seq, idx,
 											mapper.writerWithDefaultPrettyPrinter().writeValueAsString(val)
 										);
 									} catch (JsonProcessingException e) {
 										e.printStackTrace();
 									}
 								} else {
-									System.out.printf("\"%s\" (%d, %d) = %s%n", path, seq, idx, val);
+									System.out.printf("[%3d,%3d] \"%s\" = %s%n", seq, idx, path, val);
 								}
 							}
 						);
