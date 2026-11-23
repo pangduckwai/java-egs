@@ -140,7 +140,7 @@ public class JavaEgs {
 
 								if (token == JsonToken.START_OBJECT || token == JsonToken.START_ARRAY) {
 									try {
-										System.out.printf(
+										out.printf(
 											"[%3d,%3d] \"%s\" =%n%s%n", seq, idx, path,
 											mapper.writerWithDefaultPrettyPrinter().writeValueAsString(val)
 										);
@@ -148,7 +148,7 @@ public class JavaEgs {
 										e.printStackTrace();
 									}
 								} else {
-									System.out.printf("[%3d,%3d] \"%s\" = %s%n", seq, idx, path, val);
+									out.printf("[%3d,%3d] \"%s\" = %s%n", seq, idx, path, val);
 								}
 							}
 						);

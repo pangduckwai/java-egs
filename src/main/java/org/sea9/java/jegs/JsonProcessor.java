@@ -4,6 +4,9 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.nio.file.Files;
+import java.nio.file.LinkOption;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -67,7 +70,7 @@ public class JsonProcessor {
 
 		private String[][] jsonPths;
 		/**
-		 * JSON path of the item to lookup, run thru the entire file if null.
+		 * JSON paths of the items to lookup, traverse the entire input if null.
 		 */
 		public String[][] jsonPaths() {
 			return jsonPths;
@@ -214,7 +217,7 @@ public class JsonProcessor {
 	 * Process the given JSON data traversed by the given JsonParser.
 	 * @param parser  parser to traverse the given JSON data.
 	 * @param out     stream to write processed output to.
-	 * @param lookups JSON path of the item to lookup, run thru the entire file if null.
+	 * @param lookups JSON paths of the items to lookup, traverse the entire JSON data if null.
 	 * @param skip    skip processing of subtrees not in the lookup path, no effect if lookup is null.
 	 * @param action  action to be taken on JSON elements received during parsing.
 	 * @throws JsonParseException
@@ -426,7 +429,7 @@ public class JsonProcessor {
 	 * Process JSON from the given input file and potentially write to the given output file.
 	 * @param input   path of the input file.
 	 * @param output  path of the output file.
-	 * @param lookups JSON path of the item to lookup, run thru the entire file if null.
+	 * @param lookups JSON paths of the items to lookup, traverse the entire input file if null.
 	 * @param skip    skip processing of subtrees not in the lookup path, no effect if lookup is null.
 	 * @param action  action to be taken on JSON elements received during parsing.
 	 * @throws JsonParseException
@@ -445,14 +448,16 @@ public class JsonProcessor {
 		JsonFactory factory = new MappingJsonFactory();
 		JsonParser parser = factory.createParser(new File(input));
 
-		PrintStream out = System.out;
 		if (output != null) {
-			out = new PrintStream(new FileOutputStream(output));
+			if (Files.exists(Paths.get(output), LinkOption.NOFOLLOW_LINKS)) {
+				throw new RuntimeException(String.format("\"%s\" already exists", output));
+			}
+			try (PrintStream out = new PrintStream(new FileOutputStream(output))) {
+				process(parser, out, lookups, skip, action);
+			}
+		} else {
+			process(parser, System.out, lookups, skip, action);
 		}
-
-		process(
-			parser, out, lookups, skip, action
-		);
 	}
 
 	/**
