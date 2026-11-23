@@ -102,7 +102,7 @@ public class JsonProcessor {
 			skipChild = true;
 		}
 
-		public final String usage() {
+		public static final String usage() {
 			return USAGE;
 		}
 
@@ -118,7 +118,7 @@ public class JsonProcessor {
 			Config cfg = new Config();
 
 			if (args.length < 1) {
-				throw new RuntimeException(String.format("missing argument%n%s", cfg.usage()));
+				throw new RuntimeException(String.format("missing argument%n%s", usage()));
 			}
 
 			if (args.length < 2) {
@@ -167,7 +167,7 @@ public class JsonProcessor {
 						cnt ++;
 						break;
 					default:
-						throw new RuntimeException(String.format("unknown argument %s%n%s", args[i], cfg.usage()));
+						throw new RuntimeException(String.format("unknown argument %s%n%s", args[i], usage()));
 				}
 			}
 			if (cnt > 0) {
@@ -220,7 +220,7 @@ public class JsonProcessor {
 	 * @throws JsonParseException
 	 * @throws IOException
 	 */
-	// @SuppressWarnings("null")
+	@SuppressWarnings("null")
 	public static final void process(
 		JsonParser parser,
 		PrintStream out,
@@ -250,6 +250,7 @@ public class JsonProcessor {
 
 		Stack<String> currArray = new Stack<>();
 		Map<String, Integer> arrayIdx = new HashMap<>();
+		boolean found = false;
 		int seq = 0;
 
 		while (token != null) {
@@ -294,7 +295,7 @@ public class JsonProcessor {
 					} else if (curr != null) {
 						currPath.push(curr);
 					}
-					action.exec(-1, -1, token, curr, currPath.toArray(buff), null, false, currArray.isEmpty() ? null : String.format("!!! \"%s\": %d", currArray.peek(), arrayIdx.get(currArray.peek())), out);
+					action.exec(-1, -1, token, curr, currPath.toArray(buff), null, false, null, out);
 					break;
 				case END_OBJECT:
 					if (!currPath.isEmpty() && currPath.peek().equals(curr)) {
@@ -305,7 +306,10 @@ public class JsonProcessor {
 							lookupPaths.get(idx).pop();
 						}
 					}
-					action.exec(-1, -1, token, curr, currPath.toArray(buff), null, false, null, out); // TODO TEMP
+					if (found && curr == null) {
+						seq ++;
+						found = false;
+					}
 					break;
 				case START_ARRAY:
 					if (lookCnt > 0) {
@@ -349,7 +353,6 @@ public class JsonProcessor {
 							lookupPaths.get(idx).pop();
 						}
 					}
-					action.exec(-1, -1, token, curr, currPath.toArray(buff), null, false, null, out); // TODO TEMP
 					break;
 				case VALUE_STRING:
 					for (idx = 0; idx < lookCnt; idx ++) {
@@ -413,6 +416,7 @@ public class JsonProcessor {
 				default:
 				// 	break;
 			}
+			if (!found && matched) found = true;
 
 			token = parser.nextToken();
 		}
