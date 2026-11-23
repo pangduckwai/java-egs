@@ -141,7 +141,7 @@ public class JavaEgs {
 								if (token == JsonToken.START_OBJECT || token == JsonToken.START_ARRAY) {
 									try {
 										System.out.printf(
-											"[%3d,%3d] \"%s\" =%n%s%n", path, seq, idx,
+											"[%3d,%3d] \"%s\" =%n%s%n", seq, idx, path,
 											mapper.writerWithDefaultPrettyPrinter().writeValueAsString(val)
 										);
 									} catch (JsonProcessingException e) {
