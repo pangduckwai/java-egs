@@ -9,8 +9,8 @@
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>org.sea9.java</groupId>
-	<artifactId>jegs</artifactId>
-	<version>0.4.1-j8</version>
+	<artifactId>java-egs</artifactId>
+	<version>0.5.1-j8</version>
 	<name/>
 	<description/>
 	<url/>
