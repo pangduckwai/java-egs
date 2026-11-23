@@ -34,7 +34,8 @@ public class JavaEgs {
 	private static final String CMD_DISP = "display";
 	private static final String CMD_SRLZ = "serialize";
 	private static final String CMD_DSLZ = "deserialize";
-	private static final String CMD_READ = "read";
+	private static final String CMD_LIST = "list";
+	private static final String CMD_FIND = "find";
 
 	protected static final String ROOT = "root";
 	protected static final String EMPTY = "";
@@ -56,6 +57,8 @@ public class JavaEgs {
 				return;
 			}
 			try {
+				ObjectMapper mapper = new ObjectMapper();
+
 				switch (args[0].toLowerCase()) {
 					case CMD_BEAN:
 						System.out.println(APP_BEAN);
@@ -74,17 +77,11 @@ public class JavaEgs {
 					case CMD_DSLZ:
 						Examples.deserialize();
 						break;
-					case "test":
-						JsonProcessor.Config tmp = JsonProcessor.Config.parse(args);
-						tmp.usage();
-						break;
-					case CMD_READ:
+					case CMD_LIST:
 						if (args.length < 2) {
-							System.out.println("JavaEgs:\n Usage: java -jar target\\jegs.jar read {command} [option1 [option2 ...]]");
+							System.out.println("JavaEgs:\n Usage: java -jar target\\jegs.jar list [option1 [option2 ...]]");
 							return;
 						}
-
-						ObjectMapper mapper = new ObjectMapper();
 
 						JsonProcessor.process(
 							JsonProcessor.Config.parse(Arrays.copyOfRange(args, 1, args.length)),
@@ -122,10 +119,44 @@ public class JavaEgs {
 							}
 						);
 						break;
+					case CMD_FIND:
+						if (args.length < 2) {
+							System.out.println("JavaEgs:\n Usage: java -jar target\\jegs.jar find [option1 [option2 ...]]");
+							return;
+						}
+
+						JsonProcessor.process(
+							JsonProcessor.Config.parse(Arrays.copyOfRange(args, 1, args.length)),
+							(idx, seq, token, key, curr, look, found, val, out) -> {
+								if (!found)
+									return;
+
+								StringBuilder path = new StringBuilder();
+								if (curr.length > 0)
+									path.append(curr[0]);
+								for (int i = 1; i < curr.length; i ++)
+									path.append(PERIOD).append(curr[i]);
+								path.append(COLON).append(key);
+
+								if (token == JsonToken.START_OBJECT || token == JsonToken.START_ARRAY) {
+									try {
+										System.out.printf(
+											"\\\"%s\\\" (%d, %d) =%n%s%n", path, seq, idx,
+											mapper.writerWithDefaultPrettyPrinter().writeValueAsString(val)
+										);
+									} catch (JsonProcessingException e) {
+										e.printStackTrace();
+									}
+								} else {
+									System.out.printf("\"%s\" (%d, %d) = %s%n", path, seq, idx, val);
+								}
+							}
+						);
+						break;
 					default:
-						System.out.printf("Unknown command '%s'%n", args[0]);
+						System.out.printf("Unknown command \"%s\"%n", args[0]);
 				}
-			} catch (Exception e) {
+			} catch (JsonProcessingException e) {
 				e.printStackTrace();
 			}
 		};
