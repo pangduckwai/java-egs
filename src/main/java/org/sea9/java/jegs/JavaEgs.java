@@ -79,7 +79,7 @@ public class JavaEgs {
 						break;
 					case CMD_LIST:
 						if (args.length < 2) {
-							System.out.println("JavaEgs:\n Usage: java -jar target\\jegs.jar list [option1 [option2 ...]]");
+							System.err.println("JavaEgs:\n Usage: java -jar target\\jegs.jar list [option1 [option2 ...]]");
 							return;
 						}
 
@@ -108,7 +108,7 @@ public class JavaEgs {
 												mapper.writerWithDefaultPrettyPrinter().writeValueAsString(val)
 											);
 										} catch (JsonProcessingException e) {
-											e.printStackTrace();
+											e.printStackTrace(System.err);
 										}
 									} else {
 										System.out.printf("%-9s %-21s %-49s (\"%s\")%s%n", key == null ? "<null>" : key, token, path, val, find);
@@ -121,7 +121,7 @@ public class JavaEgs {
 						break;
 					case CMD_FIND:
 						if (args.length < 2) {
-							System.out.println("JavaEgs:\n Usage: java -jar target\\jegs.jar find [option1 [option2 ...]]");
+							System.err.println("JavaEgs:\n Usage: java -jar target\\jegs.jar find [option1 [option2 ...]]");
 							return;
 						}
 
@@ -145,7 +145,7 @@ public class JavaEgs {
 											mapper.writerWithDefaultPrettyPrinter().writeValueAsString(val)
 										);
 									} catch (JsonProcessingException e) {
-										e.printStackTrace();
+										e.printStackTrace(System.err);
 									}
 								} else {
 									out.printf("[%3d,%3d] \"%s\" = %s%n", seq, idx, path, val);
@@ -157,7 +157,7 @@ public class JavaEgs {
 						System.out.printf("Unknown command \"%s\"%n", args[0]);
 				}
 			} catch (JsonProcessingException e) {
-				e.printStackTrace();
+				e.printStackTrace(System.err);
 			}
 		};
 	}
