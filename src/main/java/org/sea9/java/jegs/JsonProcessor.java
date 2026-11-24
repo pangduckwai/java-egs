@@ -413,7 +413,7 @@ public class JsonProcessor {
 						currPath.pop();
 					}
 					if (!currArray.isEmpty() && currArray.peek().equals(curr)) {
-						arrayIdx.remove(currArrayPath); // Not really needed, since now uses the full array path instead of just the array names
+						arrayIdx.remove(currArrayPath); // remove to avoid map key clashes
 						currArray.pop();
 					}
 					for (idx = 0; idx < lookCnt; idx ++) {
