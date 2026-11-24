@@ -10,8 +10,10 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Stack;
 
 import com.fasterxml.jackson.core.JsonFactory;
@@ -180,6 +182,42 @@ public class JsonProcessor {
 		}
 	}
 
+	private static final String SBS = "[";
+	private static final String SBE = "]";
+
+	private static final int matchArrayKey(String key, String path) {
+		if (key == null) return -6;
+		if (!path.startsWith(key)) return -5;
+		if (!path.endsWith(SBE)) return -4; // serach path not ends with "]", not an array
+
+		int len = path.length();
+		int idx = path.indexOf(SBS);
+		if (idx != key.length()) return -3; // includes the case "[" not found, and path b4 "[" is not exactly equal the key
+
+		if (idx == (len-2)) return -1; // "[]" means matching all items within the array
+
+		try {
+			return Integer.parseInt(path.substring(idx + 1, len - 1)); // return the specified array index to lookup
+		} catch (NumberFormatException e) {
+			return -2; // the chars between "[" and "]" are not numeric
+		}
+	}
+
+	private static final String getPath(Stack<String> stack) {
+		try {
+			Iterator<String> itr = stack.iterator();
+
+			StringBuilder sb = new StringBuilder(itr.next());
+			for (; itr.hasNext();) {
+				sb.append(JavaEgs.PERIOD).append(itr.next());
+			}
+
+			return sb.toString();
+		} catch (NoSuchElementException e) {
+			return JavaEgs.EMPTY;
+		}
+	}
+
 	private static final String ERR_JSON_ROOT = "expecting root to be an object";
 	private static final String ERR_INPUT_MISSING = "input file path missing";
 	private static final String ERR_CGF_MISSING = "configuration missing";
@@ -236,13 +274,14 @@ public class JsonProcessor {
 			throw new RuntimeException(ERR_JSON_ROOT);
 		}
 
-		String[] buff = {};
-		String curr;
-		Stack<String> currPath = new Stack<>();
-		List<Stack<String>> lookupPaths = new ArrayList<Stack<String>>();
-		int[] heights;
+		String[] buff = {}; // for the use of Collection.toArray(T[])
+		String curr; // name of the current JSON node
+		Stack<String> currPath = new Stack<>(); // record the path (from root) of the current JSON node
+		List<Stack<String>> lookupPaths = new ArrayList<Stack<String>>(); // record the progress of each lookup path
+		int[] heights; // latest height of each lookup path stacks, equal lookups[n].length means the nth lookup path has been matched
 
-		int idx, lookCnt = 0;
+		int lookCnt = 0; // number of lookup paths. this value is null safe (equals 0 for both null or empty path), therefore the '@SuppressWarnings("null")' is to supress the false alarm
+		int seq = 0, idx; // 'seq' - sequence num of matched results; 'idx' - index of lookup paths (always < 'lookCnt')
 		if (lookups != null && lookups.length > 0) {
 			lookCnt = lookups.length;
 		}
@@ -251,24 +290,30 @@ public class JsonProcessor {
 		for (idx = 0; idx < lookCnt; idx ++)
 			lookupPaths.add(new Stack<>());
 
-		Stack<String> currArray = new Stack<>();
-		Map<String, Integer> arrayIdx = new HashMap<>();
-		boolean found = false;
-		int seq = 0;
+		Stack<String> currArray = new Stack<>(); // similar to 'currPath' but only contains node names of arrays in the incoming JSON data
+		String currArrayPath; // 'currArray' names with dots (.) as separators
+		Map<String, Integer> arrayIdx = new HashMap<>(); // current index of the array denoted by the array path (the map key)
+		Map<String, Integer> arrayLkp = new HashMap<>(); // record the index to lookup specified by the lookup paths
+		boolean found = false; // flag to indicate at least a match has been found in one of the previous JSON node
+		boolean matchAllItems = true; // indicates should match all array items, false means an index is specified in the lookup path
+		boolean matching = true; // indicates should attempt to match for lookups during the current parsing
 
 		while (token != null) {
 			curr = parser.currentName(); // The method getCurrentName() from the type JsonParser is deprecated
 			for (idx = 0; idx < lookCnt; idx ++)
 				heights[idx] = lookupPaths.get(idx).size();
 
-			boolean ontrack = false, matched = false;
+			currArrayPath = getPath(currArray);
+
+			boolean ontrack = false, matched = false; // 'ontrack' means the current node is in one of the search path, but not reached the lookup target yet
+			int lookIdx = -7;
 			switch (token) {
 				case START_OBJECT:
 					if (lookCnt > 0) {
 						for (idx = 0; idx < lookCnt; idx ++) {
 							if (lookups[idx][heights[idx]].equals(curr)) {
 								ontrack = true;
-								if (heights[idx] == lookups[idx].length - 1) { // found!
+								if (matching && heights[idx] == lookups[idx].length - 1) { // found!
 									matched = true;
 
 									// do not push to stacks here because after 'readValueAsTree', the corresponding END_OBJECT event is not fired
@@ -287,11 +332,20 @@ public class JsonProcessor {
 								parser.skipChildren();
 							}
 						} else {
-							if (!currArray.isEmpty()) {
-								if (!arrayIdx.containsKey(currArray.peek())) {
-									arrayIdx.put(currArray.peek(), 0);
+							// not matched and current token is null, means either the current node is the root, or is one of the array items of type object.
+							// therefore record the array index of this item in the map 'arrayIdx'.
+							if (!arrayIdx.containsKey(currArrayPath)) {
+								arrayIdx.put(currArrayPath, 0);
+							} else {
+								arrayIdx.merge(currArrayPath, 1, (a, b) -> a + b);
+							}
+							if (arrayLkp.containsKey(currArrayPath)) {
+								// if an array index to lookup is recorded, check with the current index to see if matching should be (re)enabled or not
+								if (arrayLkp.get(currArrayPath).intValue() != arrayIdx.get(currArrayPath).intValue()) {
+									matching = matchAllItems; // revert the 'matching' flag back to the value before the current index matched with the recorded lookup index
+									if (skip) parser.skipChildren();
 								} else {
-									arrayIdx.merge(currArray.peek(), 1, (a, b) -> a + b);
+									matching = true; // the indices match, enable matching until encountering the next array object
 								}
 							}
 						}
@@ -310,6 +364,8 @@ public class JsonProcessor {
 						}
 					}
 					if (found && curr == null) {
+						// since at least 1 lookup has been matched when processing the current nameless object (an array item),
+						// and the end of this array item is reached, increment the result sequence num and clear the 'found' flag
 						seq ++;
 						found = false;
 					}
@@ -317,9 +373,10 @@ public class JsonProcessor {
 				case START_ARRAY:
 					if (lookCnt > 0) {
 						for (idx = 0; idx < lookCnt; idx ++) {
-							if (curr != null && lookups[idx][heights[idx]].startsWith(curr) && lookups[idx][heights[idx]].endsWith("[]") && curr.length() == lookups[idx][heights[idx]].length() - 2) {
+							lookIdx = matchArrayKey(curr, lookups[idx][heights[idx]]);
+							if (lookIdx >= -1) {
 								ontrack = true;
-								if (heights[idx] == lookups[idx].length - 1) { // found!
+								if (matching && heights[idx] == lookups[idx].length - 1) { // found!
 									matched = true;
 
 									// do not push to stacks here because after 'readValueAsTree', the corresponding END_ARRAY event is not fired
@@ -335,6 +392,13 @@ public class JsonProcessor {
 							if (ontrack || !skip) {
 								currPath.push(curr);
 								currArray.push(curr);
+
+								if (lookIdx >= 0) {
+									// remember the specified array index to lookup
+									arrayLkp.put(getPath(currArray), lookIdx);
+									matchAllItems = false; // since an index is specified in the lookup path
+									matching = false;
+								}
 							} else {
 								parser.skipChildren();
 							}
@@ -349,7 +413,8 @@ public class JsonProcessor {
 						currPath.pop();
 					}
 					if (!currArray.isEmpty() && currArray.peek().equals(curr)) {
-						arrayIdx.remove(currArray.pop());
+						arrayIdx.remove(currArrayPath); // Not really needed, since now uses the full array path instead of just the array names
+						currArray.pop();
 					}
 					for (idx = 0; idx < lookCnt; idx ++) {
 						if (heights[idx] > 0 && lookupPaths.get(idx).peek().equals(curr)) {
@@ -359,7 +424,7 @@ public class JsonProcessor {
 					break;
 				case VALUE_STRING:
 					for (idx = 0; idx < lookCnt; idx ++) {
-						if (lookCnt > 0 && lookupPaths.get(idx).size() == (lookups[idx].length - 1) && lookups[idx][lookups[idx].length-1].equals(curr)) {
+						if (matching && lookCnt > 0 && lookupPaths.get(idx).size() == (lookups[idx].length - 1) && lookups[idx][lookups[idx].length-1].equals(curr)) {
 							matched = true;
 							action.exec(idx, seq, token, curr, currPath.toArray(buff), lookupPaths.get(idx).toArray(buff), true, parser.getText(), out);
 						}
@@ -369,7 +434,7 @@ public class JsonProcessor {
 				case VALUE_TRUE:
 				case VALUE_FALSE:
 					for (idx = 0; idx < lookCnt; idx ++) {
-						if (lookCnt > 0 && lookupPaths.get(idx).size() == (lookups[idx].length - 1) && lookups[idx][lookups[idx].length-1].equals(curr)) {
+						if (matching && lookCnt > 0 && lookupPaths.get(idx).size() == (lookups[idx].length - 1) && lookups[idx][lookups[idx].length-1].equals(curr)) {
 							matched = true;
 							action.exec(idx, seq, token, curr, currPath.toArray(buff), lookupPaths.get(idx).toArray(buff), true, parser.getBooleanValue(), out);
 						}
@@ -378,7 +443,7 @@ public class JsonProcessor {
 					break;
 				case VALUE_NUMBER_INT:
 					for (idx = 0; idx < lookCnt; idx ++) {
-						if (lookCnt > 0 && lookupPaths.get(idx).size() == (lookups[idx].length - 1) && lookups[idx][lookups[idx].length-1].equals(curr)) {
+						if (matching && lookCnt > 0 && lookupPaths.get(idx).size() == (lookups[idx].length - 1) && lookups[idx][lookups[idx].length-1].equals(curr)) {
 							matched = true;
 							action.exec(idx, seq, token, curr, currPath.toArray(buff), lookupPaths.get(idx).toArray(buff), true, parser.getLongValue(), out);
 						}
@@ -387,7 +452,7 @@ public class JsonProcessor {
 					break;
 				case VALUE_NUMBER_FLOAT:
 					for (idx = 0; idx < lookCnt; idx ++) {
-						if (lookCnt > 0 && lookupPaths.get(idx).size() == (lookups[idx].length - 1) && lookups[idx][lookups[idx].length-1].equals(curr)) {
+						if (matching && lookCnt > 0 && lookupPaths.get(idx).size() == (lookups[idx].length - 1) && lookups[idx][lookups[idx].length-1].equals(curr)) {
 							matched = true;
 							action.exec(idx, seq, token, curr, currPath.toArray(buff), lookupPaths.get(idx).toArray(buff), true, parser.getDecimalValue(), out);
 						}
@@ -396,7 +461,7 @@ public class JsonProcessor {
 					break;
 				case VALUE_EMBEDDED_OBJECT:
 					for (idx = 0; idx < lookCnt; idx ++) {
-						if (lookCnt > 0 && lookupPaths.get(idx).size() == (lookups[idx].length - 1) && lookups[idx][lookups[idx].length-1].equals(curr)) {
+						if (matching && lookCnt > 0 && lookupPaths.get(idx).size() == (lookups[idx].length - 1) && lookups[idx][lookups[idx].length-1].equals(curr)) {
 							matched = true;
 							action.exec(idx, seq, token, curr, currPath.toArray(buff), lookupPaths.get(idx).toArray(buff), true, parser.getEmbeddedObject(), out);
 						}
@@ -405,7 +470,7 @@ public class JsonProcessor {
 					break;
 				case VALUE_NULL:
 					for (idx = 0; idx < lookCnt; idx ++) {
-						if (lookCnt > 0 && lookupPaths.get(idx).size() == (lookups[idx].length - 1) && lookups[idx][lookups[idx].length-1].equals(curr)) {
+						if (matching && lookCnt > 0 && lookupPaths.get(idx).size() == (lookups[idx].length - 1) && lookups[idx][lookups[idx].length-1].equals(curr)) {
 							matched = true;
 							action.exec(idx, seq, token, curr, currPath.toArray(buff), lookupPaths.get(idx).toArray(buff), true, null, out);
 						}
@@ -419,7 +484,7 @@ public class JsonProcessor {
 				default:
 				// 	break;
 			}
-			if (!found && matched) found = true;
+			if (!found && matched) found = true; // remember a lookup has been matched
 
 			token = parser.nextToken();
 		}
