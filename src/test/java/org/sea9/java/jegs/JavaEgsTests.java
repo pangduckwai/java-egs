@@ -4,10 +4,14 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.NoSuchElementException;
+import java.util.Stack;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -44,6 +48,125 @@ class JavaEgsTests {
 		String str = "hello, there ,how, are , you, doing?";
 		String[] lst = str.split("[\\s]*,[\\s]*");
 		assertArrayEquals(xpt, lst);
+	}
+
+	private static final int matchArrayKey(String key, String path) {
+		if (key == null) return -5;
+		if (!path.startsWith(key)) return -4;
+		if (!path.endsWith("]")) return -3;
+
+		int len = path.length();
+		int idx = path.indexOf("[");
+		if (idx != key.length()) return -2; // includes the case "[" not found
+
+		if (idx == (len-2)) return 0; // "[]" means all items within the array
+
+		try {
+			return Integer.parseInt(path.substring(idx + 1, len - 1)) + 1;
+		} catch (NumberFormatException e) {
+			return -1;
+		}
+	}
+
+	@Test
+	public void matchTest() throws Exception {
+		String[] keys = {"there", null, "hello"};
+		String[] paths = {"hello", "hello[", "hell[]", "hello[]", "helloo[]", "hello]", "hello[49]", "hello[X]"};
+		int cnt = 0, rst;
+		for (String key : keys) {
+			for (String path : paths) {
+				rst = matchArrayKey(key, path);
+				// System.out.printf("%6s <- %-9s => %d%n", key == null ? "<null>" : key, path, rst);
+				if (cnt < 8) {
+					assertEquals(-4, rst);
+				} else if (cnt < 16) {
+					assertEquals(-5, rst);
+				} else {
+					switch (cnt) {
+						case 16:
+							assertEquals(-3, rst);
+							break;
+						case 17:
+							assertEquals(-3, rst);
+							break;
+						case 18:
+							assertEquals(-4, rst);
+							break;
+						case 19:
+							assertEquals(0, rst);
+							break;
+						case 20:
+							assertEquals(-2, rst);
+							break;
+						case 21:
+							assertEquals(-2, rst);
+							break;
+						case 22:
+							assertEquals(50, rst);
+							break;
+						case 23:
+							assertEquals(-1, rst);
+							break;
+					}
+				}
+				cnt ++;
+			}
+		}
+	}
+
+	private static final String getPath(Stack<String> stack) {
+		try {
+			Iterator<String> itr = stack.iterator();
+
+			StringBuilder sb = new StringBuilder(itr.next());
+			for (; itr.hasNext();) {
+				sb.append(JavaEgs.PERIOD).append(itr.next());
+			}
+
+			return sb.toString();
+		} catch (NoSuchElementException e) {
+			return null;
+		}
+	}
+
+	@Test
+	public void stackTest() throws Exception {
+		Stack<String> stack = new Stack<>();
+		stack.push("this");
+		stack.push("is");
+		stack.push("a");
+		stack.push("test");
+		stack.push("only");
+
+		String pop, pth;
+		int cnt = 0;
+		while (!stack.isEmpty()) {
+			pop = stack.pop();
+			pth = getPath(stack);
+			switch (cnt) {
+				case 0:
+					assertEquals("only", pop);
+					assertEquals("this.is.a.test", pth);
+					break;
+				case 1:
+					assertEquals("test", pop);
+					assertEquals("this.is.a", pth);
+					break;
+				case 2:
+					assertEquals("a", pop);
+					assertEquals("this.is", pth);
+					break;
+				case 3:
+					assertEquals("is", pop);
+					assertEquals("this", pth);
+					break;
+				case 4:
+					assertEquals("this", pop);
+					assertNull(pth);
+					break;
+			}
+			cnt ++;
+		}
 	}
 
 	private static final String JSON =
